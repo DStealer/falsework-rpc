@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+import "falsework/core/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.falsework.census.generated.grpc";
+option java_outer_classname = "CensusProto";
+
+package census.query;
+
+message CensusDependencyLink {
+    string parent = 1;
+    string child = 2;
+    int64 callCount = 3;
+    int64 errorCount = 4;
+}
+
+
+message CensusEndpoint {
+    string serviceName = 1;
+    string ip = 2;
+    int32 port = 3;
+}
+message CensusAnnotation {
+    int64 timestamp = 1;
+    string value = 2;
+}
+
+message CensusSpan {
+    string traceId = 1;
+    string parentId = 2;
+    string id = 3;
+    enum Kind {
+        CLIENT = 0;
+        SERVER = 1;
+        PRODUCER = 2;
+        CONSUMER = 3;
+    }
+    Kind kind = 4;
+    string name = 5;
+    int64 timestamp = 6;
+    int64 duration = 7;
+    CensusEndpoint localEndpoint = 8;
+    CensusEndpoint remoteEndpoint = 9;
+    repeated CensusAnnotation annotations = 10;
+    map<string, string> tags = 11;
+    bool debug = 12;
+    bool shared = 13;
+}
+
+
+message DependenciesRequest {
+    falsework.common.RequestMeta meta = 1;
+    int64 endTs = 2; //截止时间
+    int64 lookback = 3; //回溯时间
+}
+
+message DependenciesReply {
+    falsework.common.ResponseMeta meta = 1;
+    repeated CensusDependencyLink dependencies = 2;
+}
+
+
+message ServicesRequest {
+    falsework.common.RequestMeta meta = 1;
+}
+message ServicesReply {
+    falsework.common.ResponseMeta meta = 1;
+    repeated string services = 2;
+}
+
+
+message SpanNamesRequest {
+    falsework.common.RequestMeta meta = 1;
+    string serviceName = 2;
+}
+message SpanNamesReply {
+    falsework.common.ResponseMeta meta = 1;
+    repeated string spans = 2;
+}
+
+
+message TracesRequest {
+    falsework.common.RequestMeta meta = 1;
+    string serviceName = 2;
+    string spanName = 3;
+    string annotationQuery = 4;
+    int64 minDuration = 5;
+    int64 maxDuration = 6;
+    int64 endTs = 7;
+    int64 lookback = 8;
+    int32 limit = 9;
+}
+
+message TracesReply {
+    falsework.common.ResponseMeta meta = 1;
+    message CensusSpanList {
+        repeated CensusSpan spans = 1;
+    }
+    repeated CensusSpanList spanList = 2;
+}
+
+
+message TraceRequest {
+    falsework.common.RequestMeta meta = 1;
+    string traceIdHex = 2;
+}
+
+message TraceReply {
+    falsework.common.ResponseMeta meta = 1;
+    repeated CensusSpan spans = 2;
+}
+
+
+service TracingQueryService {
+    rpc dependencies (DependenciesRequest) returns (DependenciesReply);
+    rpc services (ServicesRequest) returns (ServicesReply);
+    rpc spanNames (SpanNamesRequest) returns (SpanNamesReply);
+    rpc traces (TracesRequest) returns (TracesReply);
+    rpc trace (TraceRequest) returns (TraceReply);
+}
+
+message CensusMetric {
+    string metricId = 1;
+    string serviceName = 2;
+    string stats = 3;
+    int64 timestamp = 4;
+}
+
+message MetricsRequest {
+    falsework.common.RequestMeta meta = 1;
+}
+message MetricsReplay {
+    falsework.common.ResponseMeta meta = 1;
+    message MetricInfo {
+        string serviceName = 1;
+        string metricId = 2;
+    }
+    repeated MetricInfo infoList = 2;
+}
+
+message MetricRequest {
+    falsework.common.RequestMeta meta = 1;
+    string metricId = 2;
+}
+message MetricReplay {
+    falsework.common.ResponseMeta meta = 1;
+    repeated CensusMetric metrics = 2;
+}
+
+service MetricQueryService {
+    rpc metrics (MetricsRequest) returns (MetricsReplay);
+    rpc metric (MetricRequest) returns (MetricReplay);
+}

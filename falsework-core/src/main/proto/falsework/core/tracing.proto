@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package falsework.tracing;
+
+import "falsework/core/common.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "FalseWorkTracingProto";
+option java_package = "com.falsework.core.generated.tracing";
+
+message FalseWorkEndpoint {
+    string serviceName = 1;
+    string ip = 2;
+    int32 port = 3;
+}
+message FalseWorkAnnotation {
+    int64 timestamp = 1;
+    string value = 2;
+}
+
+message FalseWorkSpan {
+    string traceId = 1;
+    string parentId = 2;
+    string id = 3;
+    enum Kind {
+        CLIENT = 0;
+        SERVER = 1;
+        PRODUCER = 2;
+        CONSUMER = 3;
+    }
+    Kind kind = 4;
+    string name = 5;
+    int64 timestamp = 6;
+    int64 duration = 7;
+    FalseWorkEndpoint localEndpoint = 8;
+    FalseWorkEndpoint remoteEndpoint = 9;
+    repeated FalseWorkAnnotation annotations = 10;
+    map<string, string> tags = 11;
+    bool debug = 12;
+    bool shared = 13;
+}
+
+//数据发送请求
+message FalseWorkTracingRequest {
+    falsework.common.RequestMeta meta = 1;
+    string serviceName = 2;
+    string ip = 3;
+    int32 port = 4;
+    repeated FalseWorkSpan spans = 5;
+}
+
+//数据发送响应
+message FalseWorkTracingResponse {
+    falsework.common.ResponseMeta meta = 1;
+}
+//数据采集服务
+service FalseWorkTracingService {
+    rpc collect (FalseWorkTracingRequest) returns (FalseWorkTracingResponse);
+}

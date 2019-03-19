@@ -1,0 +1,15 @@
+<!--jooq默认全局配置-->
+<settings xmlns="http://www.jooq.org/xsd/jooq-runtime-3.11.2.xsd">
+    <renderCatalog>false</renderCatalog>
+    <renderSchema>false</renderSchema>
+    <mapJPAAnnotations>false</mapJPAAnnotations>
+    <debugInfoOnStackTrace>false</debugInfoOnStackTrace>
+    <returnAllOnUpdatableRecord>true</returnAllOnUpdatableRecord>
+    <returnRecordToPojo>true</returnRecordToPojo>
+    <updatablePrimaryKeys>false</updatablePrimaryKeys>
+    <executeDeleteWithoutWhere>THROW</executeDeleteWithoutWhere>
+    <executeUpdateWithoutWhere>THROW</executeUpdateWithoutWhere>
+    <executeLogging>true</executeLogging>
+    <fetchWarnings>false</fetchWarnings>
+    <queryTimeout>60000</queryTimeout>
+</settings>

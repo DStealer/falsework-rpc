@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package falsework.metric;
+import "falsework/core/common.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "FalseWorkMetricProto";
+option java_package = "com.falsework.core.generated.metric";
+
+//数据发送请求
+message FalseWorkMetricRequest {
+    falsework.common.RequestMeta meta = 1;
+    string serviceName = 2;
+    string ip = 3;
+    int32 port = 4;
+    string stats = 5;
+}
+
+//数据发送响应
+message FalseWorkMetricResponse {
+    falsework.common.ResponseMeta meta = 1;
+}
+//数据采集服务
+service FalseWorkMetricService {
+    rpc collect (FalseWorkMetricRequest) returns (FalseWorkMetricResponse);
+}
