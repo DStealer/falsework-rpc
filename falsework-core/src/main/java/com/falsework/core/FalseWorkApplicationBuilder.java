@@ -173,10 +173,18 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
 
         builder.fallbackHandlerRegistry(new FallbackHandlerRegistry());
         Server server = builder.build();
+
+        // 启动listener
+        injector.getAllBindings().entrySet().stream()
+                .filter(e -> ServerLifecycleListener.class.isAssignableFrom(e.getKey().getTypeLiteral().getRawType()))
+                .map(e -> (ServerLifecycleListener) e.getValue().getProvider().get()).forEach(this.listeners::add);
+
         LifecycleServer lifecycleServer = new LifecycleServer(server);
         for (ServerLifecycleListener listener : this.listeners) {
             lifecycleServer.addLifecycleListener(listener);
         }
+
+
         InternalNettyServerBuilder.setStatsRecordStartedRpcs(builder, false);
         return new FalseWorkApplication(lifecycleServer, injector, register);
     }
