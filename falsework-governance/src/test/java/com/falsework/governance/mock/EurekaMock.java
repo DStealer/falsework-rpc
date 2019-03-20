@@ -1,10 +1,11 @@
-package com.falsework.eureka.mock;
+package com.falsework.governance.mock;
 
 import com.netflix.appinfo.ApplicationInfoManager;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.appinfo.MyDataCenterInstanceConfig;
 import com.netflix.appinfo.providers.EurekaConfigBasedInstanceInfoProvider;
 import com.netflix.config.DynamicPropertyFactory;
+import io.grpc.netty.NettyChannelBuilder;
 import org.junit.Test;
 
 public class EurekaMock {
@@ -22,6 +23,6 @@ public class EurekaMock {
 
     @Test
     public void test02() {
-
+        NettyChannelBuilder builder = NettyChannelBuilder.forTarget("http://127.0.0.1:8080;127.0.0.1:8081");
     }
 }

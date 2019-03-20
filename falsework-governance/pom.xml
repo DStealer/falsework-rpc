@@ -9,9 +9,9 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>falsework-eureka</artifactId>
+    <artifactId>falsework-governance</artifactId>
 
-    <name>falsework-eureka</name>
+    <name>falsework-governance</name>
 
     <dependencies>
         <dependency>
@@ -22,6 +22,14 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.falsework.core</groupId>
+            <artifactId>falsework-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.coreos</groupId>
+            <artifactId>jetcd-core</artifactId>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

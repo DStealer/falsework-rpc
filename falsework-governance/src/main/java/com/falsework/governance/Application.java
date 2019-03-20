@@ -1,4 +1,4 @@
-package com.falsework.eureka;
+package com.falsework.governance;
 
 /**
  * Hello world!
