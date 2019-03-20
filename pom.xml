@@ -45,7 +45,7 @@
         <module>falsework-core</module>
         <module>falsework-account</module>
         <module>falsework-jdbc</module>
-        <module>falsework-eureka</module>
+        <module>falsework-governance</module>
     </modules>
 
     <dependencyManagement>

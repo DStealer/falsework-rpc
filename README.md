@@ -10,5 +10,5 @@
 整个项目的核心模块,提供整个项目的核心功能
 ## falsework-jdbc
 封装jdbc层
-## falsework-eureka
+## falsework-governance
 整个项目的服务治理模块
