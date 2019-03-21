@@ -37,6 +37,14 @@ message WatchResponse {
 
 }
 
+message HeartbeatRequest {
+    falsework.common.RequestMeta meta = 1;
+}
+
+message HeartbeatResponse {
+    falsework.common.ResponseMeta meta = 1;
+}
+
 message LookupRequest {
     falsework.common.RequestMeta meta = 1;
     string serviceName = 2;
@@ -49,5 +57,7 @@ message LookupResponse {
 
 service LookupService {
     rpc lookup (LookupRequest) returns (LookupResponse) {
+    }
+    rpc heartbeat (LookupRequest) returns (LookupResponse) {
     }
 }

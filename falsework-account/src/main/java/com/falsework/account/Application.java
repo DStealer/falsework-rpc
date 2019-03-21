@@ -11,9 +11,9 @@ import com.falsework.core.datasource.DSLContextModule;
 public class Application {
     public static void main(String[] args) throws Exception {
         FalseWorkApplicationBuilder.newBuilder()
-                .withModule(new DSLContextModule())
+                //.withModule(new DSLContextModule())
                 .withModule(new ServiceModule())
-                .withModule(new PartnerModule())
+                //.withModule(new PartnerModule())
                 .runSync();
     }
 }

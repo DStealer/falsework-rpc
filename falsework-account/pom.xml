@@ -16,7 +16,11 @@
         <dependency>
             <groupId>com.falsework.core</groupId>
             <artifactId>falsework-core</artifactId>
-            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing-proto</artifactId>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

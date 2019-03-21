@@ -30,7 +30,6 @@
         <opencensus.version>0.18.0</opencensus.version>
 
         <guice.version>4.2.2</guice.version>
-        <jetcd.verion>0.0.2</jetcd.verion>
         <HikariCP.version>3.2.0</HikariCP.version>
         <mysql.version>8.0.11</mysql.version>
         <logback.version>1.2.3</logback.version>
@@ -192,16 +191,4 @@
             </plugin>
         </plugins>
     </build>
-    <distributionManagement>
-        <repository>
-            <id>releases</id>
-            <name>Releases Repository</name>
-            <url>https://nexus.zhonggu.cn/content/repositories/releases</url>
-        </repository>
-        <snapshotRepository>
-            <id>snapshots</id>
-            <name>Snapshot Repository</name>
-            <url>https://nexus.zhonggu.cn/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
 </project>

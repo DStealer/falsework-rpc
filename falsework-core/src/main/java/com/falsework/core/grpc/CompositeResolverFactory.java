@@ -2,10 +2,12 @@ package com.falsework.core.grpc;
 
 import io.grpc.Attributes;
 import io.grpc.NameResolver;
+import io.grpc.NameResolverProvider;
 
 import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -27,12 +29,13 @@ public class CompositeResolverFactory extends NameResolver.Factory {
 
     @Nullable
     @Override
-    public NameResolver newNameResolver(URI targetUri, Attributes params) {
+    public NameResolver newNameResolver(URI uri, Attributes params) {
         return this.factories.stream()
-                .filter(f -> Objects.equals(targetUri.getScheme(), f.getDefaultScheme()))
+                .filter(f -> Objects.equals(uri.getScheme(), f.getDefaultScheme()))
+                .sorted()
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No found scheme"))
-                .newNameResolver(targetUri, params);
+                .newNameResolver(uri, params);
     }
 
     @Override

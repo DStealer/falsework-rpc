@@ -1,5 +1,6 @@
-package com.falsework.governance.registor;
+package com.falsework.core.governance;
 
+import com.falsework.core.grpc.HttpResolverProvider;
 import io.grpc.ManagedChannel;
 import io.grpc.internal.SharedResourceHolder;
 import io.grpc.netty.NettyChannelBuilder;
@@ -19,7 +20,8 @@ class GovernanceChannel {
                         eventGroup =
                                 new NioEventLoopGroup(2, new DefaultThreadFactory("governance-pool", true));
                     }
-                    return NettyChannelBuilder.forTarget("metadata.google.internal:8080")
+                    return NettyChannelBuilder.forTarget("http://127.0.0.1:8080")
+                            .nameResolverFactory(new HttpResolverProvider())
                             .directExecutor()
                             .eventLoopGroup(eventGroup)
                             .usePlaintext()

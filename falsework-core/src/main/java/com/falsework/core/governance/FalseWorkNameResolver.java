@@ -1,6 +1,5 @@
-package com.falsework.governance.discovery;
+package com.falsework.core.governance;
 
-import com.falsework.governance.governor.ResolverGovernor;
 import io.grpc.Attributes;
 import io.grpc.NameResolver;
 import org.slf4j.Logger;
@@ -26,19 +25,20 @@ public class FalseWorkNameResolver extends NameResolver {
     }
 
     @Override
-    public void start(Listener listener) {
+    public synchronized void start(Listener listener) {
         LOGGER.info("start name resolver for:{}", this.uri.toString());
         this.resolverGovernor.register(uri, listener);
+        this.resolverGovernor.refresh(uri);
     }
 
     @Override
-    public void shutdown() {
+    public synchronized void shutdown() {
         LOGGER.info("shutdown name resolver for:{}", this.uri.toString());
         this.resolverGovernor.deregister(uri);
     }
 
     @Override
-    public void refresh() {
-
+    public synchronized void refresh() {
+        this.resolverGovernor.refresh(uri);
     }
 }

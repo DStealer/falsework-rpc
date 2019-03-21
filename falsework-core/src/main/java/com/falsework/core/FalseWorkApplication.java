@@ -23,7 +23,7 @@ public class FalseWorkApplication {
 
     public FalseWorkApplication run() throws Exception {
         LOGGER.info("************************FalseWorkApplication starting....*************************");
-        injector.getAllBindings().forEach((key, binding) -> LOGGER.info("bing:{} <=> {}", key, binding));
+        injector.getAllBindings().forEach((key, binding) -> LOGGER.info("binging:{}",binding));
         this.server.start();
         this.register.register();
         LOGGER.info("************************FalseWorkApplication started....***************************");

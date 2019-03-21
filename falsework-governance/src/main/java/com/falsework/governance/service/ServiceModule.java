@@ -1,11 +1,10 @@
-package com.falsework.account.service;
+package com.falsework.governance.service;
 
 import com.falsework.core.aop.common.EnvAwareModule;
 
 public class ServiceModule extends EnvAwareModule {
     @Override
     protected void configure() {
-       // bind(LoginService.class).asEagerSingleton();
-        bind(SimpleService.class).asEagerSingleton();
+        bind(LookupService.class).asEagerSingleton();
     }
 }

@@ -1,7 +1,5 @@
 package com.falsework.account.service;
 
-import com.coreos.jetcd.Client;
-import com.coreos.jetcd.data.ByteSequence;
 import com.falsework.account.generated.LoginGrpc;
 import com.falsework.account.generated.LoginReply;
 import com.falsework.account.generated.LoginRequest;
@@ -21,7 +19,7 @@ public class LoginServiceTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginServiceTest.class);
 
     @Test
-    public void login() throws Exception {
+    public void login1() throws Exception {
         ChannelManager channelManager = ChannelManagerBuilder.newBuilder().name("http://192.168.105.1:8083").build();
         channelManager.start();
         LoginGrpc.LoginBlockingStub stub = channelManager.newStub(LoginGrpc::newBlockingStub);
@@ -33,25 +31,6 @@ public class LoginServiceTest {
 
     @Test
     public void login2() throws Exception {
-        Client client = Client.builder()
-                .endpoints("http://192.168.105.51:2379", "http://192.168.105.52:2379", "http://192.168.105.53:2379")
-                .user(ByteSequence.fromString("root"))
-                .password(ByteSequence.fromString("root"))
-                .build();
-        ChannelManager channelManager = ChannelManagerBuilder.newBuilder().name("etcd://account-v1")
-                .build();
-        channelManager.start();
-        LoginGrpc.LoginBlockingStub stub = channelManager.newStub(LoginGrpc::newBlockingStub);
-        while (true) {
-            LoginRequest request = LoginRequest.newBuilder().setUsername("u0").setPassword("pwd").build();
-            LoginReply reply = stub.login(request);
-            System.out.println(reply);
-            TimeUnit.SECONDS.sleep(5);
-        }
-    }
-
-    @Test
-    public void login3() throws Exception {
         ChannelManager channelManager = ChannelManagerBuilder
                 .newBuilder().name("http://192.168.105.1:8081")
                 .build();
@@ -72,7 +51,7 @@ public class LoginServiceTest {
     }
 
     @Test
-    public void login04() throws Exception {
+    public void login03() throws Exception {
         ChannelManager channelManager = ChannelManagerBuilder
                 .newBuilder().name("http://192.168.105.1:8081")
                 .build();
@@ -85,7 +64,7 @@ public class LoginServiceTest {
     }
 
     @Test
-    public void login05() throws Exception {
+    public void login04() throws Exception {
         ChannelManager channelManager = ChannelManagerBuilder
                 .newBuilder().name("http://192.168.105.1:8081")
                 .executor(MoreExecutors.directExecutor())
