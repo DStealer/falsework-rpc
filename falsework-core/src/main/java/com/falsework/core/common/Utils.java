@@ -1,6 +1,8 @@
 package com.falsework.core.common;
 
-public abstract class Utils {
+public enum Utils {
+    ;
+
     /**
      * 传播异常
      *

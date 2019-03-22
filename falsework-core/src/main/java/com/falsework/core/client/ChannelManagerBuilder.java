@@ -1,6 +1,9 @@
 package com.falsework.core.client;
 
 import com.falsework.core.common.Builder;
+import com.falsework.core.grpc.CompositeResolverFactoryManager;
+import com.falsework.core.grpc.LoadBalancerProviderManager;
+import com.falsework.core.grpc.SharedExecutorManager;
 import com.google.common.base.Preconditions;
 import io.grpc.ClientInterceptor;
 import io.grpc.LoadBalancerRegistry;
@@ -122,9 +125,13 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
         NettyChannelBuilder builder = NettyChannelBuilder.forTarget(this.name);
         if (this.executor != null) {
             builder.executor(this.executor);
+        } else {
+            builder.executor(SharedExecutorManager.getShared());
         }
         if (this.factory != null) {
             builder.nameResolverFactory(factory);
+        } else {
+            builder.nameResolverFactory(CompositeResolverFactoryManager.getFactory());
         }
         for (ClientInterceptor interceptor : this.interceptorList) {
             builder.intercept(interceptor);
@@ -136,7 +143,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
         //内部配置
         builder.usePlaintext();
 
-        builder.loadBalancerFactory(LoadBalancerRegistry.getDefaultRegistry().getProvider("round_robin"));
+        builder.loadBalancerFactory(LoadBalancerProviderManager.get());
 
         InternalNettyChannelBuilder.setStatsRecordStartedRpcs(builder, false);
 

@@ -12,7 +12,11 @@ import java.util.Collections;
 
 @SuppressWarnings("all")
 public class HttpResolverProvider extends NameResolverProvider {
+    public static final HttpResolverProvider SINGLTON = new HttpResolverProvider();
     private static final String SCHEMA = "http";
+
+    private HttpResolverProvider() {
+    }
 
     @Override
     protected boolean isAvailable() {

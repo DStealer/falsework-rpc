@@ -29,14 +29,6 @@ enum EventType {
     DELETED = 2;
 }
 
-message WatchRequest {
-
-}
-
-message WatchResponse {
-
-}
-
 message HeartbeatRequest {
     falsework.common.RequestMeta meta = 1;
 }
@@ -54,10 +46,30 @@ message LookupResponse {
     repeated ServiceInfo serviceInfoList = 2;
 }
 
+message RegisterRequest {
+    falsework.common.RequestMeta meta = 1;
+    ServiceInfo serviceInfo = 2;
+}
 
-service LookupService {
+message RegisterResponse {
+    falsework.common.ResponseMeta meta = 1;
+}
+
+message CancelRegisterRequest {
+
+}
+
+message CancelRegisterResponse {
+
+}
+message StatusChangeRequest{
+
+}
+
+service DiscoveryService {
     rpc lookup (LookupRequest) returns (LookupResponse) {
     }
-    rpc heartbeat (LookupRequest) returns (LookupResponse) {
+    rpc heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {
     }
+
 }

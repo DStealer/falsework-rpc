@@ -1,7 +1,7 @@
 package com.falsework.core.datasource;
 
 import com.falsework.core.common.Builder;
-import com.falsework.core.common.Props;
+import com.falsework.core.config.Props;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.zaxxer.hikari.HikariConfig;

@@ -5,6 +5,7 @@ import com.falsework.account.generated.LoginReply;
 import com.falsework.account.generated.LoginRequest;
 import com.falsework.core.client.ChannelManager;
 import com.falsework.core.client.ChannelManagerBuilder;
+import com.falsework.core.grpc.HttpResolverProvider;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.stub.StreamObserver;
 import org.junit.Test;
@@ -18,9 +19,13 @@ import java.util.concurrent.TimeUnit;
 public class LoginServiceTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginServiceTest.class);
 
+
     @Test
     public void login1() throws Exception {
-        ChannelManager channelManager = ChannelManagerBuilder.newBuilder().name("http://192.168.105.1:8083").build();
+        ChannelManager channelManager = ChannelManagerBuilder.newBuilder()
+                .name("http://127.0.0.1:8081")
+                .nameFactory(HttpResolverProvider.SINGLTON)
+                .build();
         channelManager.start();
         LoginGrpc.LoginBlockingStub stub = channelManager.newStub(LoginGrpc::newBlockingStub);
         LoginRequest request = LoginRequest.newBuilder().setUsername("u0").setPassword("pwd").build();

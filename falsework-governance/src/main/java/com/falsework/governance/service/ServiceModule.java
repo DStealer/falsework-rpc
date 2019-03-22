@@ -1,8 +1,8 @@
 package com.falsework.governance.service;
 
-import com.falsework.core.aop.common.EnvAwareModule;
+import com.google.inject.AbstractModule;
 
-public class ServiceModule extends EnvAwareModule {
+public class ServiceModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(LookupService.class).asEagerSingleton();

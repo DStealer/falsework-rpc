@@ -1,17 +1,20 @@
 package com.falsework.core.census;
 
-import com.falsework.core.aop.common.EnvAwareModule;
 import com.falsework.core.client.ChannelManager;
 import com.falsework.core.client.ChannelManagerBuilder;
+import com.falsework.core.config.Props;
+import com.falsework.core.config.PropsManager;
+import com.falsework.core.config.PropsVars;
 import com.falsework.core.datasource.OpenCensusMetricsTracker;
 import com.falsework.core.generated.metric.FalseWorkMetricServiceGrpc;
 import com.falsework.core.generated.tracing.FalseWorkTracingServiceGrpc;
+import com.google.inject.AbstractModule;
 import io.opencensus.contrib.grpc.metrics.RpcViews;
 import io.opencensus.trace.Tracing;
 import io.opencensus.trace.config.TraceConfig;
 import io.opencensus.trace.config.TraceParams;
 
-public class CensusStubModule extends EnvAwareModule {
+public class CensusStubModule extends AbstractModule {
     @Override
     protected void configure() {
         try {
@@ -27,17 +30,17 @@ public class CensusStubModule extends EnvAwareModule {
             RpcViews.registerAllGrpcViews();
 
             OpenCensusMetricsTracker.registerViews();
-
+            Props props = PropsManager.getProps();
             //发送采集数据
-            String serverName = getProps().getProperty("server.name");
-            String ip = getProps().getProperty("server.ip");
-            int port = getProps().getInt("server.port");
+            String name = props.getProperty(PropsVars.SERVER_NAME);
+            String ip = props.getProperty(PropsVars.SERVER_IP);
+            int port = props.getInt(PropsVars.SERVER_PORT);
             FalseWorkTracingServiceGrpc.FalseWorkTracingServiceStub tracingServiceStub = manager.newStub(FalseWorkTracingServiceGrpc::newStub);
-            TracingExporterHandler tracingExporterHandler = new TracingExporterHandler(tracingServiceStub, serverName, ip, port);
+            TracingExporterHandler tracingExporterHandler = new TracingExporterHandler(tracingServiceStub, name, ip, port);
             Tracing.getExportComponent().getSpanExporter().registerHandler("TracingExporterHandler", tracingExporterHandler);
 
             FalseWorkMetricServiceGrpc.FalseWorkMetricServiceStub metricServiceStub = manager.newStub(FalseWorkMetricServiceGrpc::newStub);
-            MetricExportHandler metricExportHandler = new MetricExportHandler(metricServiceStub, serverName, ip, port);
+            MetricExportHandler metricExportHandler = new MetricExportHandler(metricServiceStub, name, ip, port);
             metricExportHandler.schedule();
         } catch (Exception e) {
             addError(e);

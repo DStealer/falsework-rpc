@@ -4,6 +4,7 @@ import com.falsework.core.client.ChannelManager;
 import com.falsework.core.client.ChannelManagerBuilder;
 import com.falsework.core.governance.FalseWorkNameResolverProvider;
 import com.falsework.governance.generated.LookupServiceGrpc;
+import com.falsework.governance.generated.ServiceInfo;
 import io.grpc.testing.protobuf.SimpleRequest;
 import io.grpc.testing.protobuf.SimpleResponse;
 import io.grpc.testing.protobuf.SimpleServiceGrpc;
@@ -41,5 +42,12 @@ public class LookupServiceTest extends BaseServiceTest {
 
     @Test
     public void heartbeat() {
+    }
+
+    @Test
+    public void test01() {
+        ServiceInfo info = ServiceInfo.newBuilder()
+
+                .build();
     }
 }

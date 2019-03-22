@@ -1,7 +1,9 @@
 package com.falsework.core.datasource;
 
-import com.falsework.core.aop.common.EnvAwareModule;
-import com.falsework.core.common.Props;
+import com.falsework.core.config.Props;
+import com.falsework.core.config.PropsManager;
+import com.falsework.core.config.PropsVars;
+import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
@@ -13,13 +15,14 @@ import java.util.Map;
 /**
  * 数据源绑定模块
  */
-public class DataSourceModule extends EnvAwareModule {
+public class DataSourceModule extends AbstractModule {
     private static final Logger LOGGER = LoggerFactory.getLogger(DataSourceModule.class);
 
     @Override
     protected void configure() {
         LOGGER.info("Try to config datasource content");
-        Map<String, Props> namedProps = getProps().subNamedProps("jdbc");
+        Props props = PropsManager.getProps();
+        Map<String, Props> namedProps = props.subNamedProps(PropsVars.JDBC_PREFIX);
         namedProps.forEach((name, prop) -> {
             HikariDataSource dataSource = DataSourceBuilder.newBuilder()
                     .withName(name)

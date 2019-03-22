@@ -1,12 +1,12 @@
 package com.falsework.census.module;
 
-import com.falsework.census.service.MetricQueryService;
-import com.falsework.census.service.TracingQueryService;
 import com.falsework.census.service.MetricCollectService;
+import com.falsework.census.service.MetricQueryService;
 import com.falsework.census.service.TracingCollectService;
-import com.falsework.core.aop.common.EnvAwareModule;
+import com.falsework.census.service.TracingQueryService;
+import com.google.inject.AbstractModule;
 
-public class StubModule extends EnvAwareModule {
+public class StubModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(TracingCollectService.class).asEagerSingleton();

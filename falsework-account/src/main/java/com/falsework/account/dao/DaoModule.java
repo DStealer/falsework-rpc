@@ -1,10 +1,10 @@
 package com.falsework.account.dao;
 
-import com.falsework.core.aop.common.EnvAwareModule;
+import com.google.inject.AbstractModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DaoModule extends EnvAwareModule {
+public class DaoModule extends AbstractModule {
     private static final Logger LOGGER = LoggerFactory.getLogger(DaoModule.class);
 
 

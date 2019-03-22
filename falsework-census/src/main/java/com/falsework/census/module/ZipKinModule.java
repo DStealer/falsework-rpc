@@ -1,10 +1,11 @@
 package com.falsework.census.module;
 
 import com.falsework.census.composite.ZipkinMySQLStorageTimedListener;
-import com.falsework.core.aop.common.EnvAwareModule;
-import com.falsework.core.common.Props;
+import com.falsework.core.config.Props;
+import com.falsework.core.config.PropsManager;
 import com.falsework.core.datasource.DataSourceBuilder;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.inject.AbstractModule;
 import com.zaxxer.hikari.HikariDataSource;
 import io.netty.util.NettyRuntime;
 import org.jooq.DSLContext;
@@ -21,10 +22,11 @@ import zipkin2.storage.mysql.v1.MySQLStorage;
 
 import java.util.concurrent.Executors;
 
-public class ZipKinModule extends EnvAwareModule {
+public class ZipKinModule extends AbstractModule {
     @Override
     protected void configure() {
-        Props tracingProps = getProps()
+        Props props = PropsManager.getProps();
+        Props tracingProps = props
                 .subProps("jdbc.census");
 
         HikariDataSource tracingDatasource = DataSourceBuilder.newBuilder()

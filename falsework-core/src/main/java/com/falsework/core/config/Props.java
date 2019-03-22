@@ -1,4 +1,4 @@
-package com.falsework.core.common;
+package com.falsework.core.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +22,7 @@ import java.util.Properties;
 public final class Props extends Properties {
     private static final Logger LOGGER = LoggerFactory.getLogger(Props.class);
 
-    private Props() {
+    Props() {
     }
 
 
@@ -32,7 +32,7 @@ public final class Props extends Properties {
      * @param path 绝对路径
      * @return
      */
-    public static Props loadFromPath(String path) throws IOException {
+    static Props loadFromPath(String path) throws IOException {
         LOGGER.info("load properties from :{}", path);
         try (FileReader reader = new FileReader(path)) {
             Props util = new Props();
@@ -48,7 +48,7 @@ public final class Props extends Properties {
      * @return
      * @throws IOException
      */
-    public static Props loadFromClassPath(String name) throws IOException {
+    static Props loadFromClassPath(String name) throws IOException {
         URL resource = Thread.currentThread().getContextClassLoader().getResource(name);
         if (resource != null) {
             LOGGER.info("load properties from :{}", resource.getPath());

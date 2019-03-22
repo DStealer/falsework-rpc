@@ -21,7 +21,7 @@ class GovernanceChannel {
                                 new NioEventLoopGroup(2, new DefaultThreadFactory("governance-pool", true));
                     }
                     return NettyChannelBuilder.forTarget("http://127.0.0.1:8080")
-                            .nameResolverFactory(new HttpResolverProvider())
+                            .nameResolverFactory(HttpResolverProvider.asFactory())
                             .directExecutor()
                             .eventLoopGroup(eventGroup)
                             .usePlaintext()

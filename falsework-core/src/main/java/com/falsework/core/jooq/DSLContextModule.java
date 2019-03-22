@@ -1,7 +1,11 @@
-package com.falsework.core.datasource;
+package com.falsework.core.jooq;
 
-import com.falsework.core.aop.common.EnvAwareModule;
-import com.falsework.core.common.Props;
+import com.falsework.core.config.Props;
+import com.falsework.core.config.PropsManager;
+import com.falsework.core.config.PropsVars;
+import com.falsework.core.datasource.DataSourceBuilder;
+import com.falsework.core.datasource.OpenCensusMetricsTracker;
+import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 import com.zaxxer.hikari.HikariDataSource;
 import org.jooq.DSLContext;
@@ -16,7 +20,7 @@ import java.util.Map;
 /**
  * 提供JOOQ运行环境
  */
-public class DSLContextModule extends EnvAwareModule {
+public class DSLContextModule extends AbstractModule {
     private static final Logger LOGGER = LoggerFactory.getLogger(DSLContextModule.class);
 
     static {
@@ -26,7 +30,8 @@ public class DSLContextModule extends EnvAwareModule {
     @Override
     protected void configure() {
         LOGGER.info("Try to config jooq content");
-        Map<String, Props> namedProps = getProps().subNamedProps("jdbc");
+        Props props = PropsManager.getProps();
+        Map<String, Props> namedProps = props.subNamedProps(PropsVars.JDBC_PREFIX);
         namedProps.forEach((name, prop) -> {
             HikariDataSource dataSource = DataSourceBuilder.newBuilder()
                     .withName(name)
