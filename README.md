@@ -4,7 +4,7 @@
 # 项目介绍
 ## falsework-census
 链路追踪数据与统计数据收集展示模块,基于zipkin+mysql实现
-## falsework-account
+## falsework-client & falsework-service
 作为整个项目的客户端演示程序
 ## falsework-core
 整个项目的核心模块,提供整个项目的核心功能

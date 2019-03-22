@@ -42,10 +42,11 @@
     <modules>
         <module>falsework-census</module>
         <module>falsework-core</module>
-        <module>falsework-account</module>
         <module>falsework-jdbc</module>
         <module>falsework-governance</module>
         <module>falsework-gateway</module>
+        <module>falsework-service</module>
+        <module>falsework-client</module>
     </modules>
 
     <dependencyManagement>
@@ -79,17 +80,6 @@
                 <groupId>org.jooq</groupId>
                 <artifactId>jooq</artifactId>
                 <version>${jooq.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.coreos</groupId>
-                <artifactId>jetcd-core</artifactId>
-                <version>${jetcd.verion}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>com.coreos</groupId>
-                        <artifactId>jetcd-resolver</artifactId>
-                    </exclusion>
-                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.zaxxer</groupId>

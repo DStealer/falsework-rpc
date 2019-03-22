@@ -1,9 +1,9 @@
 package com.falsework.core.governance;
 
 import com.falsework.core.generated.common.RequestMeta;
+import com.falsework.governance.generated.DiscoveryServiceGrpc;
 import com.falsework.governance.generated.LookupRequest;
 import com.falsework.governance.generated.LookupResponse;
-import com.falsework.governance.generated.LookupServiceGrpc;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.grpc.Attributes;
@@ -29,9 +29,9 @@ import java.util.stream.Collectors;
 public class ResolverGovernor implements EventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResolverGovernor.class);
     private final ConcurrentHashMap<URI, NameResolver.Listener> dependencies = new ConcurrentHashMap<>();
-    private final LookupServiceGrpc.LookupServiceStub stub;
+    private final DiscoveryServiceGrpc.DiscoveryServiceStub stub;
 
-    public ResolverGovernor(LookupServiceGrpc.LookupServiceStub stub) {
+    public ResolverGovernor(DiscoveryServiceGrpc.DiscoveryServiceStub stub) {
         Preconditions.checkNotNull(stub);
         this.stub = stub;
     }

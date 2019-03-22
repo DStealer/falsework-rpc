@@ -1,0 +1,21 @@
+syntax = "proto3";
+import "falsework/core/common.proto";
+
+package falsework.governance;
+
+option java_multiple_files = true;
+option java_package = "com.falsework.service.generated";
+option java_outer_classname = "ServiceProto";
+
+message EchoRequest {
+    falsework.common.RequestMeta meta = 1;
+    string msg = 2;
+}
+message EchoResponse {
+    falsework.common.ResponseMeta meta = 1;
+    string msg = 3;
+}
+service EchoService {
+    rpc echo (EchoRequest) returns (EchoResponse) {
+    }
+}
