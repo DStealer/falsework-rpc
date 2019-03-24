@@ -1,7 +1,7 @@
 package com.falsework.client;
 
 import com.falsework.client.background.BackgroundModule;
-import com.falsework.client.dependecy.DependecyModule;
+import com.falsework.client.dependecy.DependencyModule;
 import com.falsework.core.FalseWorkApplicationBuilder;
 
 /**
@@ -10,7 +10,7 @@ import com.falsework.core.FalseWorkApplicationBuilder;
 public class Application {
     public static void main(String[] args) throws Exception {
         FalseWorkApplicationBuilder.newBuilder()
-                .withModule(new DependecyModule())
+                .withModule(new DependencyModule())
                 .withModule(new BackgroundModule())
                 .runSync();
     }

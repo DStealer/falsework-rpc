@@ -1,6 +1,5 @@
 package com.falsework.core.governance;
 
-import com.falsework.governance.generated.DiscoveryServiceGrpc;
 import com.google.common.base.Preconditions;
 import io.grpc.Attributes;
 import io.grpc.NameResolver;
@@ -9,18 +8,18 @@ import io.grpc.NameResolverProvider;
 import javax.annotation.Nullable;
 import java.net.URI;
 
-public class FalseWorkNameResolverProvider extends NameResolverProvider {
+public class DiscoveryNameResolverProvider extends NameResolverProvider {
     private static final String SCHEMA = "dynamic";
-    private final ResolverGovernor resolverGovernor;
+    private final DiscoveryClient client;
 
-    public FalseWorkNameResolverProvider(DiscoveryServiceGrpc.DiscoveryServiceStub stub) {
-        Preconditions.checkNotNull(stub);
-        this.resolverGovernor = new ResolverGovernor(stub);
+    public DiscoveryNameResolverProvider(DiscoveryClient client) {
+        Preconditions.checkNotNull(client);
+        this.client = client;
     }
 
     @Override
     protected boolean isAvailable() {
-        return true;
+        return this.client.isFetchRegistry();
     }
 
     @Override
@@ -32,7 +31,7 @@ public class FalseWorkNameResolverProvider extends NameResolverProvider {
     @Override
     public NameResolver newNameResolver(URI uri, Attributes attributes) {
         if (SCHEMA.equals(uri.getScheme())) {
-            return new FalseWorkNameResolver(resolverGovernor, uri, attributes);
+            return new DiscoveryNameResolver(this.client.getGovernor(), uri, attributes);
         } else {
             return null;
         }

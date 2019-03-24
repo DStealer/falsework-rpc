@@ -19,10 +19,7 @@ package com.falsework.core.composite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
+import java.net.*;
 import java.util.Enumeration;
 
 public enum SystemUtil {
@@ -35,7 +32,7 @@ public enum SystemUtil {
      *
      * @return
      */
-    public static String getServerIPv4() {
+    public static String serverIPv4() {
         String candidateAddress = null;
         try {
             Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
@@ -80,5 +77,19 @@ public enum SystemUtil {
         } catch (SocketException e) {
             throw new RuntimeException("Cannot resolve local network address", e);
         }
+    }
+
+    /**
+     * 获取本机主键名称
+     *
+     * @return
+     */
+    public static String hostname() {
+        try {
+           return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            LOGGER.warn("can't find hostname,return unknown");
+        }
+        return "UNKNOWN";
     }
 }

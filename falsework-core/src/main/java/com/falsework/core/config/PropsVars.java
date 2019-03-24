@@ -15,9 +15,19 @@ public interface PropsVars {
     String SERVER_PORT = "server.port";
 
     /**
+     * 服务属组
+     */
+    String SERVER_GROUP = "server.group";
+
+    /**
      * server 线程池
      */
     String SERVER_THREAD_POOL_SIZE = "server.thread.pool.size";
+
+    /**
+     * 服务治理配置前缀
+     */
+    String DISCOVERY_PREFIX = "discovery";
 
     /**
      * 服务治理的地址 http://127.0.0.1:2377;127.0.0.1:2378
@@ -36,4 +46,9 @@ public interface PropsVars {
      * jdbc 配置前缀
      */
     String JDBC_PREFIX = "jdbc";
+
+    /**
+     * channel 线程池
+     */
+    String CHANNEL_THREAD_POOL_SIZE = "channel.thread.pool.size";
 }

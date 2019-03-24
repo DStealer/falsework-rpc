@@ -5,6 +5,6 @@ import com.google.inject.AbstractModule;
 public class ServiceModule extends AbstractModule {
     @Override
     protected void configure() {
-        bind(LookupService.class).asEagerSingleton();
+        bind(DiscoveryService.class).asEagerSingleton();
     }
 }

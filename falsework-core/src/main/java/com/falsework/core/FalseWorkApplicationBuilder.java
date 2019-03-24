@@ -1,12 +1,15 @@
 package com.falsework.core;
 
-import com.falsework.core.composite.FixInstanceModule;
 import com.falsework.core.common.Builder;
 import com.falsework.core.common.Holder;
+import com.falsework.core.composite.FixInstanceModule;
 import com.falsework.core.composite.SystemUtil;
 import com.falsework.core.config.Props;
 import com.falsework.core.config.PropsManager;
 import com.falsework.core.config.PropsVars;
+import com.falsework.core.governance.DiscoveryClient;
+import com.falsework.core.governance.DiscoveryNameResolverProvider;
+import com.falsework.core.governance.DiscoveryRegister;
 import com.falsework.core.grpc.CompositeResolverFactoryManager;
 import com.falsework.core.grpc.HttpResolverProvider;
 import com.falsework.core.grpc.LoadBalancerProviderManager;
@@ -105,11 +108,29 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
         Props props = PropsManager.initConfig(this.propsFileName);
         //使用负载均衡策略
         LoadBalancerProviderManager.set(LoadBalancerRegistry.getDefaultRegistry().getProvider("round_robin"));
+
+        int threadChannelNumber = props.getInt(PropsVars.CHANNEL_THREAD_POOL_SIZE, NettyRuntime.availableProcessors() * 2);
         //使用共享线程池
-        SharedExecutorManager.setShared(null);
+        SharedExecutorManager.setShared(Executors.newFixedThreadPool(threadChannelNumber, new ThreadFactoryBuilder()
+                .setNameFormat("channel-executor-%d").build()));
+        LOGGER.info("channel thread pool size:{}", threadChannelNumber);
         //命名解析
         CompositeResolverFactoryManager.addFactory(HttpResolverProvider.SINGLTON);
 
+        ServerRegister register;
+        boolean discovery = props.existSubProps(PropsVars.DISCOVERY_PREFIX);
+        if (discovery) {
+            DiscoveryClient client = new DiscoveryClient(props);
+            client.init();
+            CompositeResolverFactoryManager.addFactory(new DiscoveryNameResolverProvider(client));
+            if (client.isRegisterSelf()) {
+                register = new DiscoveryRegister(client);
+            } else {
+                register = ServerRegister.NO_OP;
+            }
+        } else {
+            register = ServerRegister.NO_OP;
+        }
 
         this.modules.add(new FixInstanceModule<>(Map.class, this.global));
         this.modules.add(new FixInstanceModule<>(Props.class, props));
@@ -135,11 +156,10 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
                 .filter(e -> ServerServiceDefinition.class.isAssignableFrom(e.getKey().getTypeLiteral().getRawType()))
                 .map(e -> (ServerServiceDefinition) e.getValue().getProvider().get()).forEach(builder::addService);
 
-        int threadServerNumber = props.getInt(PropsVars.SERVER_THREAD_POOL_SIZE, NettyRuntime.availableProcessors() * 8);
+        int threadServerNumber = props.getInt(PropsVars.SERVER_THREAD_POOL_SIZE, NettyRuntime.availableProcessors() * 4);
         builder.executor(Executors.newFixedThreadPool(threadServerNumber, new ThreadFactoryBuilder()
                 .setNameFormat("server-executor-%d").build()));
-
-        LOGGER.info("server core thread:{}", threadServerNumber);
+        LOGGER.info("server thread pool size:{}", threadServerNumber);
 
 
         builder.intercept(TimedInterceptor.getInstance());
@@ -162,6 +182,6 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
         }
 
         InternalNettyServerBuilder.setStatsRecordStartedRpcs(builder, false);
-        return new FalseWorkApplication(lifecycleServer, injector, ServerRegister.NO_OP);
+        return new FalseWorkApplication(lifecycleServer, injector, register);
     }
 }

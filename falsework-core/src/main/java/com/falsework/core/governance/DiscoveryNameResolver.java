@@ -7,13 +7,13 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 
-public class FalseWorkNameResolver extends NameResolver {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FalseWorkNameResolver.class);
+public class DiscoveryNameResolver extends NameResolver {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryNameResolver.class);
     private final ResolverGovernor resolverGovernor;
     private final URI uri;
     private final Attributes params;
 
-    public FalseWorkNameResolver(ResolverGovernor resolverGovernor, URI uri, Attributes params) {
+    public DiscoveryNameResolver(ResolverGovernor resolverGovernor, URI uri, Attributes params) {
         this.resolverGovernor = resolverGovernor;
         this.uri = uri;
         this.params = params;
@@ -27,18 +27,18 @@ public class FalseWorkNameResolver extends NameResolver {
     @Override
     public synchronized void start(Listener listener) {
         LOGGER.info("start name resolver for:{}", this.uri.toString());
-        this.resolverGovernor.register(uri, listener);
-        this.resolverGovernor.refresh(uri);
+        this.resolverGovernor.register(uri.getAuthority(), listener);
+        this.resolverGovernor.refresh(uri.getAuthority());
     }
 
     @Override
     public synchronized void shutdown() {
         LOGGER.info("shutdown name resolver for:{}", this.uri.toString());
-        this.resolverGovernor.deregister(uri);
+        this.resolverGovernor.deregister(uri.getAuthority());
     }
 
     @Override
     public synchronized void refresh() {
-        this.resolverGovernor.refresh(uri);
+        this.resolverGovernor.refresh(uri.getAuthority());
     }
 }

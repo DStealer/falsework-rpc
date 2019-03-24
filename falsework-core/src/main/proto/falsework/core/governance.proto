@@ -12,9 +12,15 @@ enum ServingStatus {
     NOT_SERVING = 1;
     SERVICE_UNKNOWN = 2;
 }
+enum RelayStatus {
+    UNKNOWN = 0;
+    OK = 1;
+    FAILED = 2;
+    NOT_FOUND = 3;
+}
 
-message ServiceInfo {
-    string serviceId = 1;
+message InstanceInfo {
+    string instanceId = 1;
     string serviceName = 2;
     string groupName = 3;
     string hostname = 4;
@@ -23,53 +29,143 @@ message ServiceInfo {
     ServingStatus status = 6;
     map<string, string> attributes = 8;
 }
+
+message InstanceList {
+    repeated InstanceInfo instanceInfoList = 1;
+    string hashCode = 2;
+}
+
 enum EventType {
     ADDED = 0;
     MODIFIED = 1;
     DELETED = 2;
 }
 
+//心跳保持
 message HeartbeatRequest {
     falsework.common.RequestMeta meta = 1;
+    string instanceId = 2;
+    string serviceName = 3;
+    string groupName = 4;
 }
 
 message HeartbeatResponse {
     falsework.common.ResponseMeta meta = 1;
+    RelayStatus status = 2;
 }
 
-message LookupRequest {
-    falsework.common.RequestMeta meta = 1;
-    string serviceName = 2;
-}
-message LookupResponse {
-    falsework.common.ResponseMeta meta = 1;
-    repeated ServiceInfo serviceInfoList = 2;
-}
-
+//服务注册
 message RegisterRequest {
     falsework.common.RequestMeta meta = 1;
-    ServiceInfo serviceInfo = 2;
+    InstanceInfo instance = 2;
 }
 
 message RegisterResponse {
     falsework.common.ResponseMeta meta = 1;
+    RelayStatus status = 2;
 }
 
-message CancelRegisterRequest {
-
+//服务注销
+message CancelRequest {
+    falsework.common.RequestMeta meta = 1;
+    string instanceId = 2;
+    string serviceName = 3;
+    string groupName = 4;
 }
 
-message CancelRegisterResponse {
-
+message CancelResponse {
+    falsework.common.ResponseMeta meta = 1;
+    RelayStatus status = 2;
 }
-message StatusChangeRequest{
 
+//状态更改
+message StatusChangeRequest {
+    falsework.common.RequestMeta meta = 1;
+    string instanceId = 2;
+    string serviceName = 3;
+    string groupName = 4;
+    ServingStatus status = 5;
+    string reason = 6;
+}
+
+message StatusChangeResponse {
+    falsework.common.ResponseMeta meta = 1;
+    RelayStatus status = 2;
+}
+
+//组查询
+message GroupRequest {
+    falsework.common.RequestMeta meta = 1;
+}
+
+message GroupResponse {
+    falsework.common.ResponseMeta meta = 1;
+    repeated string groupNameList = 2;
+}
+
+//服务查询
+message ServiceRequest {
+    falsework.common.RequestMeta meta = 1;
+    string groupName = 2;
+}
+
+message ServiceResponse {
+    falsework.common.ResponseMeta meta = 1;
+    repeated string serviceNameList = 2;
+}
+
+//服务实例查询
+message InstanceRequest {
+    falsework.common.RequestMeta meta = 1;
+    string serviceName = 2;
+    string groupName = 3;
+}
+
+message InstanceResponse {
+    falsework.common.ResponseMeta meta = 1;
+    InstanceList instanceList = 2;
+}
+
+//注册实例查询
+message FullRequest {
+    falsework.common.RequestMeta meta = 1;
+    string groupName = 2;
+}
+
+message FullResponse {
+    falsework.common.ResponseMeta meta = 1;
+    map<string, InstanceList> serviceInstance = 2;
+}
+
+//变化查询
+message DeltaRequest {
+    falsework.common.RequestMeta meta = 1;
+    string groupName = 2;
+    map<string, string> serviceHashInfo = 3;
+}
+message DeltaResponse {
+    falsework.common.ResponseMeta meta = 1;
+    map<string, InstanceList> serviceInstance = 2;
 }
 
 service DiscoveryService {
-    rpc lookup (LookupRequest) returns (LookupResponse) {
-    }
     rpc heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {
+    }
+    rpc register (RegisterRequest) returns (RegisterResponse) {
+    }
+    rpc cancel (CancelRequest) returns (CancelResponse) {
+    }
+    rpc change (StatusChangeRequest) returns (StatusChangeResponse) {
+    }
+    rpc group (GroupRequest) returns (GroupResponse) {
+    }
+    rpc service (ServiceRequest) returns (ServiceResponse) {
+    }
+    rpc instance (InstanceRequest) returns (InstanceResponse) {
+    }
+    rpc full (FullRequest) returns (FullResponse) {
+    }
+    rpc delta (DeltaRequest) returns (DeltaResponse) {
     }
 
 }

@@ -5,11 +5,11 @@ import com.falsework.core.client.ChannelManagerBuilder;
 import com.falsework.service.generated.EchoServiceGrpc;
 import com.google.inject.AbstractModule;
 
-public class DependecyModule extends AbstractModule {
+public class DependencyModule extends AbstractModule {
     @Override
     protected void configure() {
         ChannelManager manager = ChannelManagerBuilder.newBuilder()
-                .name("http://127.0.0.1:8081")
+                .name("dynamic://service-v1")
                 .build();
         try {
             manager.start();
