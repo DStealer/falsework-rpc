@@ -51,4 +51,9 @@ public interface PropsVars {
      * channel 线程池
      */
     String CHANNEL_THREAD_POOL_SIZE = "channel.thread.pool.size";
+
+    /**
+     * census 配置
+     */
+    String CENSUS_ADDRESS = "census.addresses";
 }

@@ -18,9 +18,10 @@ public class CensusStubModule extends AbstractModule {
     @Override
     protected void configure() {
         try {
+            Props props = PropsManager.getProps();
             //建立采集数据客户端
             ChannelManager manager = ChannelManagerBuilder.newBuilder()
-                    .name("etcd://census-v1")
+                    .name(props.getProperty(PropsVars.CENSUS_ADDRESS))
                     .build();
             manager.start();
             //采集参数配置
@@ -30,11 +31,11 @@ public class CensusStubModule extends AbstractModule {
             RpcViews.registerAllGrpcViews();
 
             OpenCensusMetricsTracker.registerViews();
-            Props props = PropsManager.getProps();
             //发送采集数据
             String name = props.getProperty(PropsVars.SERVER_NAME);
             String ip = props.getProperty(PropsVars.SERVER_IP);
             int port = props.getInt(PropsVars.SERVER_PORT);
+
             FalseWorkTracingServiceGrpc.FalseWorkTracingServiceStub tracingServiceStub = manager.newStub(FalseWorkTracingServiceGrpc::newStub);
             TracingExporterHandler tracingExporterHandler = new TracingExporterHandler(tracingServiceStub, name, ip, port);
             Tracing.getExportComponent().getSpanExporter().registerHandler("TracingExporterHandler", tracingExporterHandler);

@@ -194,24 +194,23 @@ public class DiscoveryClient {
      * @return
      */
     private synchronized boolean refresh() {
-        DeltaRequest request = DeltaRequest.newBuilder()
+        DeltaServiceRequest request = DeltaServiceRequest.newBuilder()
                 .setMeta(RequestMeta.getDefaultInstance())
                 .setGroupName(this.myInfo.getGroupName())
                 .putAllServiceHashInfo(this.localCacheInstanceHash)
                 .build();
         try {
-            DeltaResponse response = this.discoveryServiceStub.delta(request);
-            Map<String, InstanceList> instanceMap = response.getServiceInstanceMap();
+            DeltaServiceResponse response = this.discoveryServiceStub.deltaService(request);
+            List<ServiceInfo> deltaServiceInfoList = response.getServiceInfoListList();
 
-            for (Map.Entry<String, InstanceList> entry : instanceMap.entrySet()) {
-                this.governor.onChange(entry.getKey(), entry.getValue().getInstanceInfoListList());
+            for (ServiceInfo info : deltaServiceInfoList) {
+                this.governor.onChange(info.getServiceName(), info.getInstanceListList());
             }
 
-            if (instanceMap.size() > 0) {
-                for (Map.Entry<String, InstanceList> entry : instanceMap.entrySet()) {
-                    this.localCacheInstanceHash.put(entry.getKey(), entry.getValue().getHashCode());
-                }
+            for (ServiceInfo info : deltaServiceInfoList) {
+                this.localCacheInstanceHash.put(info.getServiceName(), info.getHashCode());
             }
+
             return true;
         } catch (Exception exception) {
             LOGGER.warn("discover refresh failed,try later", exception);
@@ -227,14 +226,14 @@ public class DiscoveryClient {
      */
     public List<InstanceInfo> getServiceInstance(String serviceName) {
         try {
-            InstanceRequest request = InstanceRequest.newBuilder()
+            ServiceRequest request = ServiceRequest.newBuilder()
                     .setMeta(RequestMeta.getDefaultInstance())
                     .setServiceName(serviceName)
                     .setGroupName(this.myInfo.getGroupName())
                     .build();
-            InstanceResponse response = this.discoveryServiceStub.instance(request);
-            this.localCacheInstanceHash.put(serviceName, response.getInstanceList().getHashCode());
-            return response.getInstanceList().getInstanceInfoListList();
+            ServiceResponse response = this.discoveryServiceStub.service(request);
+            this.localCacheInstanceHash.put(serviceName, response.getServiceInfo().getHashCode());
+            return response.getServiceInfo().getInstanceListList();
         } catch (StatusRuntimeException exception) {
             LOGGER.warn("fetch service instance failed", exception);
             return Collections.emptyList();

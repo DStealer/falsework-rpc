@@ -30,9 +30,17 @@ message InstanceInfo {
     map<string, string> attributes = 8;
 }
 
-message InstanceList {
-    repeated InstanceInfo instanceInfoList = 1;
-    string hashCode = 2;
+message ServiceInfo {
+    string serviceName = 1;
+    string groupName = 2;
+    repeated InstanceInfo instanceList = 3;
+    string hashCode = 4;
+}
+
+message GroupInfo {
+    string groupName = 1;
+    map<string, ServiceInfo> serviceMap = 2;
+    string hashCode = 3;
 }
 
 enum EventType {
@@ -94,58 +102,69 @@ message StatusChangeResponse {
 }
 
 //组查询
-message GroupRequest {
+message GroupNameRequest {
     falsework.common.RequestMeta meta = 1;
 }
 
-message GroupResponse {
+message GroupNameResponse {
     falsework.common.ResponseMeta meta = 1;
     repeated string groupNameList = 2;
 }
 
 //服务查询
-message ServiceRequest {
+message ServiceNameRequest {
     falsework.common.RequestMeta meta = 1;
     string groupName = 2;
 }
 
-message ServiceResponse {
+message ServiceNameResponse {
     falsework.common.ResponseMeta meta = 1;
     repeated string serviceNameList = 2;
 }
 
-//服务实例查询
-message InstanceRequest {
+//服务查询
+message ServiceRequest {
     falsework.common.RequestMeta meta = 1;
     string serviceName = 2;
     string groupName = 3;
 }
 
-message InstanceResponse {
+message ServiceResponse {
     falsework.common.ResponseMeta meta = 1;
-    InstanceList instanceList = 2;
+    ServiceInfo serviceInfo = 2;
 }
 
-//注册实例查询
-message FullRequest {
+//服务查询
+message GroupRequest {
     falsework.common.RequestMeta meta = 1;
     string groupName = 2;
 }
 
-message FullResponse {
+message GroupResponse {
     falsework.common.ResponseMeta meta = 1;
-    map<string, InstanceList> serviceInstance = 2;
+    GroupInfo groupInfo = 2;
 }
 
-//变化查询
-message DeltaRequest {
+//组变化查询
+message DeltaGroupRequest {
+    falsework.common.RequestMeta meta = 1;
+    string groupName = 2;
+    string groupHashInfo = 3;
+}
+message DeltaGroupResponse {
+    falsework.common.ResponseMeta meta = 1;
+    GroupInfo groupInfo = 2;
+}
+
+//服务变化查询
+message DeltaServiceRequest {
     falsework.common.RequestMeta meta = 1;
     string groupName = 2;
     map<string, string> serviceHashInfo = 3;
 }
-message DeltaResponse {
+message DeltaServiceResponse {
     falsework.common.ResponseMeta meta = 1;
-    map<string, InstanceList> serviceInstance = 2;
+    repeated ServiceInfo serviceInfoList = 2;
 }
 
 service DiscoveryService {
@@ -157,15 +176,16 @@ service DiscoveryService {
     }
     rpc change (StatusChangeRequest) returns (StatusChangeResponse) {
     }
-    rpc group (GroupRequest) returns (GroupResponse) {
+    rpc groupName (GroupNameRequest) returns (GroupNameResponse) {
+    }
+    rpc serviceName (ServiceNameRequest) returns (ServiceNameResponse) {
     }
     rpc service (ServiceRequest) returns (ServiceResponse) {
     }
-    rpc instance (InstanceRequest) returns (InstanceResponse) {
+    rpc group (GroupRequest) returns (GroupResponse) {
     }
-    rpc full (FullRequest) returns (FullResponse) {
+    rpc deltaService (DeltaServiceRequest) returns (DeltaServiceResponse) {
     }
-    rpc delta (DeltaRequest) returns (DeltaResponse) {
+    rpc deltaGroup (DeltaGroupRequest) returns (DeltaServiceResponse) {
     }
-
 }
