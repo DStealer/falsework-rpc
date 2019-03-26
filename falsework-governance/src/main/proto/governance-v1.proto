@@ -1,0 +1,43 @@
+syntax = "proto3";
+package governance.core;
+
+import "falsework/core/common.proto";
+import "falsework/core/governance.proto";
+
+option java_multiple_files = true;
+option java_package = "com.falsework.governance.generated";
+option java_outer_classname = "GovernanceProto";
+
+message RegistryLeaseInfo {
+    falsework.governance.InstanceInfo instance = 1;
+    int64 duration = 2;
+    int64 registrationTimestamp = 3;
+    int64 lastUpdateTimestamp = 4;
+    int64 evictionTimestamp = 5;
+}
+
+message RegistryServiceInfo {
+    string serviceName = 1;
+    string groupName = 2;
+    map<string, RegistryLeaseInfo> leaseMap = 3;
+    string hash = 4;
+}
+
+message RegistryGroupInfo {
+    string groupName = 1;
+    map<string, RegistryServiceInfo> serviceMap = 2;
+    string hash = 3;
+}
+
+message RegistryRequest {
+    falsework.common.RequestMeta meta = 1;
+}
+
+message RegistryResponse {
+    falsework.common.ResponseMeta meta = 1;
+}
+
+service RegistryService {
+    rpc registry (RegistryRequest) returns (RegistryResponse) {
+    }
+}

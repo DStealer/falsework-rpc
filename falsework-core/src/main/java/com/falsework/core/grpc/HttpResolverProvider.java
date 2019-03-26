@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @SuppressWarnings("all")
@@ -63,6 +64,7 @@ public class HttpResolverProvider extends NameResolverProvider {
                         groups.add(new EquivalentAddressGroup(
                                 Lists.newArrayList(parse(authority))));
                     }
+                    Collections.shuffle(groups);//打乱顺序，避免同时连接一个服务,grpc有选取第一个可用连接的负载策略
                     listener.onAddresses(groups, params);
                 }
 

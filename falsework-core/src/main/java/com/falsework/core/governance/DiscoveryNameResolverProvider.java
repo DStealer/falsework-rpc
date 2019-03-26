@@ -29,9 +29,9 @@ public class DiscoveryNameResolverProvider extends NameResolverProvider {
 
     @Nullable
     @Override
-    public NameResolver newNameResolver(URI uri, Attributes attributes) {
-        if (SCHEMA.equals(uri.getScheme())) {
-            return new DiscoveryNameResolver(this.client.getGovernor(), uri, attributes);
+    public NameResolver newNameResolver(URI targetUri, NameResolver.Helper helper) {
+        if (SCHEMA.equals(targetUri.getScheme())) {
+            return new DiscoveryNameResolver(this.client.getGovernor(), targetUri, helper);
         } else {
             return null;
         }

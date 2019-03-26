@@ -1,6 +1,6 @@
 package com.falsework.core.governance;
 
-import com.falsework.governance.generated.InstanceInfo;
+import com.falsework.core.generated.governance.InstanceInfo;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.grpc.Attributes;
@@ -72,8 +72,8 @@ public class ResolverGovernor implements EventListener {
                         for (Map.Entry<String, String> me : e.getAttributesMap().entrySet()) {
                             builder.set(Attributes.Key.create(me.getKey()), me.getValue());
                         }
-                        return new EquivalentAddressGroup(Lists.newArrayList(new InetSocketAddress(e.getHostname(), e.getPort())),
-                                builder.build());
+                        return new EquivalentAddressGroup(Lists.newArrayList(
+                                new InetSocketAddress(e.getHostname(), e.getPort())), builder.build());
                     }).collect(Collectors.toList());
             listener.onAddresses(groups, Attributes.EMPTY);
         }
@@ -95,8 +95,8 @@ public class ResolverGovernor implements EventListener {
                         for (Map.Entry<String, String> me : e.getAttributesMap().entrySet()) {
                             builder.set(Attributes.Key.create(me.getKey()), me.getValue());
                         }
-                        return new EquivalentAddressGroup(Lists.newArrayList(new InetSocketAddress(e.getHostname(), e.getPort())),
-                                builder.build());
+                        return new EquivalentAddressGroup(Lists.newArrayList(
+                                new InetSocketAddress(e.getIpAddress(), e.getPort())), builder.build());
                     }).collect(Collectors.toList());
             NameResolver.Listener listener = this.listeners.get(serviceName);
             listener.onAddresses(groups, Attributes.EMPTY);

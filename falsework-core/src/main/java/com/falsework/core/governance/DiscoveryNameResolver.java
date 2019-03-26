@@ -1,6 +1,5 @@
 package com.falsework.core.governance;
 
-import io.grpc.Attributes;
 import io.grpc.NameResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,12 +10,12 @@ public class DiscoveryNameResolver extends NameResolver {
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryNameResolver.class);
     private final ResolverGovernor resolverGovernor;
     private final URI uri;
-    private final Attributes params;
+    private final NameResolver.Helper helper;
 
-    public DiscoveryNameResolver(ResolverGovernor resolverGovernor, URI uri, Attributes params) {
+    public DiscoveryNameResolver(ResolverGovernor resolverGovernor, URI uri, NameResolver.Helper helper) {
         this.resolverGovernor = resolverGovernor;
         this.uri = uri;
-        this.params = params;
+        this.helper = helper;
     }
 
     @Override

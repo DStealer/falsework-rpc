@@ -1,52 +1,43 @@
 syntax = "proto3";
-import "falsework/core/common.proto";
 
 package falsework.governance;
 
-option java_multiple_files = true;
-option java_package = "com.falsework.governance.generated";
-option java_outer_classname = "EurekaProto";
+import "falsework/core/common.proto";
 
-enum ServingStatus {
-    SERVING = 0;
-    NOT_SERVING = 1;
-    SERVICE_UNKNOWN = 2;
-}
-enum RelayStatus {
+option java_multiple_files = true;
+option java_package = "com.falsework.core.generated.governance";
+option java_outer_classname = "GovernanceProto";
+
+enum InstanceStatus {
     UNKNOWN = 0;
-    OK = 1;
-    FAILED = 2;
-    NOT_FOUND = 3;
+    UP = 1; // Ready to receive traffic
+    DOWN = 2; // Do not send traffic- healthcheck callback failed
+    STARTING = 3; // Just about starting- initializations to be done
+    OUT_OF_SERVICE = 4; // Intentionally shutdown for traffic
 }
 
 message InstanceInfo {
     string instanceId = 1;
     string serviceName = 2;
     string groupName = 3;
-    string hostname = 4;
-    string ipAddress = 5;
-    int32 port = 7;
-    ServingStatus status = 6;
-    map<string, string> attributes = 8;
+    string ipAddress = 4;
+    int32 port = 5;
+    InstanceStatus status = 6;
+    map<string, string> attributes = 7;
+    string hash = 8;
 }
 
 message ServiceInfo {
     string serviceName = 1;
     string groupName = 2;
-    repeated InstanceInfo instanceList = 3;
-    string hashCode = 4;
+    map<string, InstanceInfo> instanceMap = 3;
+    string hash = 4;
 }
 
 message GroupInfo {
     string groupName = 1;
     map<string, ServiceInfo> serviceMap = 2;
-    string hashCode = 3;
-}
-
-enum EventType {
-    ADDED = 0;
-    MODIFIED = 1;
-    DELETED = 2;
+    string hash = 3;
 }
 
 //心跳保持
@@ -59,7 +50,6 @@ message HeartbeatRequest {
 
 message HeartbeatResponse {
     falsework.common.ResponseMeta meta = 1;
-    RelayStatus status = 2;
 }
 
 //服务注册
@@ -70,7 +60,6 @@ message RegisterRequest {
 
 message RegisterResponse {
     falsework.common.ResponseMeta meta = 1;
-    RelayStatus status = 2;
 }
 
 //服务注销
@@ -83,7 +72,6 @@ message CancelRequest {
 
 message CancelResponse {
     falsework.common.ResponseMeta meta = 1;
-    RelayStatus status = 2;
 }
 
 //状态更改
@@ -92,13 +80,12 @@ message StatusChangeRequest {
     string instanceId = 2;
     string serviceName = 3;
     string groupName = 4;
-    ServingStatus status = 5;
+    InstanceStatus status = 5;
     string reason = 6;
 }
 
 message StatusChangeResponse {
     falsework.common.ResponseMeta meta = 1;
-    RelayStatus status = 2;
 }
 
 //组查询

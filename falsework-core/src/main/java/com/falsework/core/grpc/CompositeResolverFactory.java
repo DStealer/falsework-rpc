@@ -29,13 +29,13 @@ public class CompositeResolverFactory extends NameResolver.Factory {
 
     @Nullable
     @Override
-    public NameResolver newNameResolver(URI uri, Attributes params) {
+    public NameResolver newNameResolver(URI uri, NameResolver.Helper helper) {
         return this.factories.stream()
                 .filter(f -> Objects.equals(uri.getScheme(), f.getDefaultScheme()))
                 .sorted()
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No found scheme"))
-                .newNameResolver(uri, params);
+                .newNameResolver(uri, helper);
     }
 
     @Override

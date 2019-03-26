@@ -6,7 +6,7 @@ option java_multiple_files = true;
 option java_package = "com.falsework.census.generated.grpc";
 option java_outer_classname = "CensusProto";
 
-package census.query;
+package census.core;
 
 message CensusDependencyLink {
     string parent = 1;

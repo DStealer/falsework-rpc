@@ -1,7 +1,7 @@
 syntax = "proto3";
 import "falsework/core/common.proto";
 
-package falsework.governance;
+package service.demo;
 
 option java_multiple_files = true;
 option java_package = "com.falsework.service.generated";

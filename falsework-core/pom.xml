@@ -59,6 +59,12 @@
             <artifactId>resilience4j-all</artifactId>
             <optional>true</optional>
         </dependency>
+        <!--编译依赖-->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <scope>compile</scope>
+        </dependency>
         <!--测试依赖-->
         <dependency>
             <groupId>io.grpc</groupId>
