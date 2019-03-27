@@ -12,7 +12,7 @@ import com.falsework.core.governance.DiscoveryNameResolverProvider;
 import com.falsework.core.governance.DiscoveryRegister;
 import com.falsework.core.grpc.CompositeResolverFactoryManager;
 import com.falsework.core.grpc.HttpResolverProvider;
-import com.falsework.core.grpc.LoadBalancerProviderManager;
+import com.falsework.core.grpc.LoadBalancerPolicyManager;
 import com.falsework.core.grpc.SharedExecutorManager;
 import com.falsework.core.server.*;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -107,7 +107,7 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
     public FalseWorkApplication build() {
         Props props = PropsManager.initConfig(this.propsFileName);
         //使用负载均衡策略
-        LoadBalancerProviderManager.set(LoadBalancerRegistry.getDefaultRegistry().getProvider("round_robin"));
+        LoadBalancerPolicyManager.set("round_robin");
 
         int threadChannelNumber = props.getInt(PropsVars.CHANNEL_THREAD_POOL_SIZE, NettyRuntime.availableProcessors() * 2);
         //使用共享线程池

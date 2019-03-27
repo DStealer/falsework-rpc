@@ -3,11 +3,14 @@ package com.falsework.governance.model;
 import com.falsework.core.generated.governance.ServiceInfo;
 import com.falsework.governance.generated.RegistryLeaseInfo;
 import com.falsework.governance.generated.RegistryServiceInfo;
+import com.google.common.hash.Hashing;
 
+import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
-public class InnerServiceInfo {
+public class InnerServiceInfo implements Comparable<InnerServiceInfo> {
     private final String serviceName;
     private final String groupName;
     private final ConcurrentHashMap<String, LeaseInfo> instanceMap;
@@ -47,24 +50,38 @@ public class InnerServiceInfo {
         return serviceName;
     }
 
+    @SuppressWarnings("all")
     public String reHash() {
-        this.hash = this.instanceMap.values()
-                .stream()
-                .map(LeaseInfo::getHolder)
-                .sorted()
-                .map(InnerInstanceInfo::getHash)
-                .reduce("", String::concat);
+        this.hash = Hashing.goodFastHash(32)
+                .hashUnencodedChars(this.instanceMap.values()
+                        .stream()
+                        .map(LeaseInfo::getHolder)
+                        .sorted()
+                        .map(InnerInstanceInfo::reHash)
+                        .collect(Collectors.joining()))
+                .toString();
         return this.hash;
     }
+
 
     public ServiceInfo snapshot() {
         ServiceInfo.Builder builder = ServiceInfo.newBuilder()
                 .setGroupName(this.groupName)
                 .setServiceName(this.serviceName)
-                .setHash(this.hash);
+                .setHash(this.reHash());
         for (Map.Entry<String, LeaseInfo> entry : this.instanceMap.entrySet()) {
             builder.putInstanceMap(entry.getKey(), entry.getValue().getHolder().snapshot());
         }
         return builder.build();
+    }
+
+    @Override
+    public int compareTo(@Nonnull InnerServiceInfo o) {
+        int result = this.groupName.compareTo(o.groupName);
+        if (result != 0) {
+            return result;
+        } else {
+            return this.serviceName.compareTo(o.serviceName);
+        }
     }
 }

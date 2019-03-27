@@ -211,7 +211,10 @@ public class InstanceRegistry {
     }
 
     private boolean isLeaseExpirationEnabled() {
-        return this.props.getBoolean(PropsVars.REGISTER_LEASE_EXPIRATION_ENABLED);
+        if (!isSelfPreservationModeEnabled()) {
+            return true;
+        }
+        return true; //需要计算
     }
 
     /**
@@ -329,5 +332,99 @@ public class InstanceRegistry {
         }
         LeaseInfo instanceInfoLease = serviceInfo.getInstanceMap().get(instanceId);
         return Optional.of(instanceInfoLease.getHolder().snapshot());
+    }
+
+
+    /**
+     * 检测组变更
+     *
+     * @param groupHashInfoMap
+     * @return
+     */
+    public List<GroupInfo> deltaGroup(Map<String, String> groupHashInfoMap) {
+        List<GroupInfo> list = new ArrayList<>();
+        for (Map.Entry<String, String> entry : groupHashInfoMap.entrySet()) {
+            InnerGroupInfo info = this.multiGroupInfo.get(entry.getKey());
+            if (info == null) {
+                list.add(GroupInfo.newBuilder()
+                        .setGroupName(entry.getKey())
+                        .setHash("group not found")
+                        .build());
+                continue;
+            }
+            if (!info.reHash().equals(entry.getValue())) {
+                list.add(info.snapshot());
+            }
+        }
+
+        return list;
+    }
+
+    /**
+     * 检测服务变更
+     *
+     * @param groupName
+     * @param serviceHashInfoMap
+     * @return
+     */
+    public List<ServiceInfo> deltaService(String groupName, Map<String, String> serviceHashInfoMap) {
+        InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+        if (groupInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("group not find");
+        }
+        List<ServiceInfo> list = new ArrayList<>();
+        ConcurrentHashMap<String, InnerServiceInfo> serviceMap = groupInfo.getServiceMap();
+        for (Map.Entry<String, String> entry : serviceHashInfoMap.entrySet()) {
+            InnerServiceInfo serviceInfo = serviceMap.get(entry.getKey());
+            if (serviceInfo == null) {
+                list.add(ServiceInfo.newBuilder()
+                        .setGroupName(groupName)
+                        .setServiceName(entry.getKey())
+                        .setHash("service not fund")
+                        .build());
+            }
+            if (!serviceInfo.reHash().equals(entry.getValue())) {
+                list.add(serviceInfo.snapshot());
+            }
+        }
+
+        return list;
+    }
+
+    /**
+     * 检测实例变更
+     *
+     * @param groupName
+     * @param serviceName
+     * @param instanceHashInfoMap
+     * @return
+     */
+    public List<InstanceInfo> deltaInstance(String groupName, String serviceName, Map<String, String> instanceHashInfoMap) {
+        InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+        if (groupInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("group not found");
+        }
+        InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+        if (serviceInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("service not found");
+        }
+        ConcurrentHashMap<String, LeaseInfo> instanceMap = serviceInfo.getInstanceMap();
+        List<InstanceInfo> list = new ArrayList<>();
+        for (Map.Entry<String, String> entry : instanceHashInfoMap.entrySet()) {
+            LeaseInfo info = instanceMap.get(entry.getKey());
+            if (info == null) {
+                list.add(InstanceInfo.newBuilder()
+                        .setGroupName(groupName)
+                        .setServiceName(serviceName)
+                        .setInstanceId(entry.getKey())
+                        .setHash("instance not fund")
+                        .build());
+                continue;
+            }
+            if (!info.getHolder().reHash().equals(entry.getValue())) {
+                list.add(info.getHolder().snapshot());
+            }
+        }
+        return list;
     }
 }

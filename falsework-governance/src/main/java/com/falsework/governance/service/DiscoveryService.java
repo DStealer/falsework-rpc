@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -197,7 +198,9 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find delta service for:{}/{}", request.getGroupName(), request.getServiceHashInfoMap().keySet());
         DeltaServiceResponse.Builder builder = DeltaServiceResponse.newBuilder();
         try {
-            builder.setMeta(ErrorCode.NA.toResponseMeta());
+            List<ServiceInfo> deltaServices = this.registry.deltaService(request.getGroupName(), request.getServiceHashInfoMap());
+            builder.setMeta(ErrorCode.NA.toResponseMeta())
+                    .addAllServiceInfoList(deltaServices);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());
@@ -211,11 +214,35 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
     }
 
     @Override
-    public void deltaGroup(DeltaGroupRequest request, StreamObserver<DeltaServiceResponse> responseObserver) {
-        LOGGER.info("find delta group for:{}", request.getGroupName());
-        DeltaServiceResponse.Builder builder = DeltaServiceResponse.newBuilder();
+    public void deltaGroup(DeltaGroupRequest request, StreamObserver<DeltaGroupResponse> responseObserver) {
+        LOGGER.info("find delta group for:{}", request.getGroupHashInfoMap().keySet());
+        DeltaGroupResponse.Builder builder = DeltaGroupResponse.newBuilder();
         try {
-            builder.setMeta(ErrorCode.NA.toResponseMeta());
+            List<GroupInfo> deltaGroups = this.registry.deltaGroup(request.getGroupHashInfoMap());
+            builder.setMeta(ErrorCode.NA.toResponseMeta())
+                    .addAllGroupInfoList(deltaGroups);
+        } catch (ResponseMetaException e) {
+            LOGGER.error(e.getErrorCode(), e);
+            builder.setMeta(e.toResponseMeta());
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            builder.setMeta(ErrorCode.INTERNAL.toResponseMeta());
+        } finally {
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void deltaInstance(DeltaInstanceRequest request, StreamObserver<DeltaInstanceResponse> responseObserver) {
+        LOGGER.info("find delta instance for:{}|{}|{}", request.getGroupName(), request.getServiceName(),
+                request.getInstanceHashInfoMap().keySet());
+        DeltaInstanceResponse.Builder builder = DeltaInstanceResponse.newBuilder();
+        try {
+            List<InstanceInfo> deltaInstance = this.registry.deltaInstance(request.getGroupName(), request.getServiceName(),
+                    request.getInstanceHashInfoMap());
+            builder.setMeta(ErrorCode.NA.toResponseMeta())
+                    .addAllInstanceInfoList(deltaInstance);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());

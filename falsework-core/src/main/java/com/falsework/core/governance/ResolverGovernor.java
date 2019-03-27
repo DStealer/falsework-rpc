@@ -73,7 +73,7 @@ public class ResolverGovernor implements EventListener {
                             builder.set(Attributes.Key.create(me.getKey()), me.getValue());
                         }
                         return new EquivalentAddressGroup(Lists.newArrayList(
-                                new InetSocketAddress(e.getHostname(), e.getPort())), builder.build());
+                                new InetSocketAddress(e.getIpAddress(), e.getPort())), builder.build());
                     }).collect(Collectors.toList());
             listener.onAddresses(groups, Attributes.EMPTY);
         }

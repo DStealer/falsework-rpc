@@ -2,11 +2,10 @@ package com.falsework.core.client;
 
 import com.falsework.core.common.Builder;
 import com.falsework.core.grpc.CompositeResolverFactoryManager;
-import com.falsework.core.grpc.LoadBalancerProviderManager;
+import com.falsework.core.grpc.LoadBalancerPolicyManager;
 import com.falsework.core.grpc.SharedExecutorManager;
 import com.google.common.base.Preconditions;
 import io.grpc.ClientInterceptor;
-import io.grpc.LoadBalancerRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.NameResolver;
 import io.grpc.netty.InternalNettyChannelBuilder;
@@ -143,7 +142,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
         //内部配置
         builder.usePlaintext();
 
-        builder.loadBalancerFactory(LoadBalancerProviderManager.get());
+        builder.defaultLoadBalancingPolicy(LoadBalancerPolicyManager.get());
 
         InternalNettyChannelBuilder.setStatsRecordStartedRpcs(builder, false);
 

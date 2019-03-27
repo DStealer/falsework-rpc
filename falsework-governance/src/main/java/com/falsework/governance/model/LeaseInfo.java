@@ -27,7 +27,7 @@ public class LeaseInfo {
     }
 
     public void renew() {
-        this.lastUpdateTimestamp = System.currentTimeMillis() + this.duration;
+        this.lastUpdateTimestamp = System.currentTimeMillis();
     }
 
     public void cancel() {

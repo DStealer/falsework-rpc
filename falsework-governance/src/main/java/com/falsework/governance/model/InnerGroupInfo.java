@@ -3,11 +3,14 @@ package com.falsework.governance.model;
 import com.falsework.core.generated.governance.GroupInfo;
 import com.falsework.governance.generated.RegistryGroupInfo;
 import com.falsework.governance.generated.RegistryServiceInfo;
+import com.google.common.hash.Hashing;
 
+import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
-public class InnerGroupInfo {
+public class InnerGroupInfo implements Comparable<InnerGroupInfo> {
     private final String groupName;
     private final ConcurrentHashMap<String, InnerServiceInfo> serviceMap;
     private volatile String hash;
@@ -39,17 +42,30 @@ public class InnerGroupInfo {
         return hash;
     }
 
+    @SuppressWarnings("all")
     public String reHash() {
-        this.hash = "";
+        this.hash = Hashing.goodFastHash(32)
+                .hashUnencodedChars(this.serviceMap.values().stream()
+                        .sorted()
+                        .map(InnerServiceInfo::reHash)
+                        .collect(Collectors.joining()))
+                .toString();
         return this.hash;
     }
 
     public GroupInfo snapshot() {
         GroupInfo.Builder builder = GroupInfo.newBuilder()
-                .setGroupName(this.groupName).setHash(this.hash);
+                .setGroupName(this.groupName)
+                .setHash(this.reHash());
         for (Map.Entry<String, InnerServiceInfo> infoEntry : this.serviceMap.entrySet()) {
             builder.putServiceMap(infoEntry.getKey(), infoEntry.getValue().snapshot());
         }
         return builder.build();
+    }
+
+
+    @Override
+    public int compareTo(@Nonnull InnerGroupInfo o) {
+        return this.groupName.compareTo(o.groupName);
     }
 }

@@ -13,10 +13,6 @@ public interface PropsVars extends com.falsework.core.config.PropsVars {
      */
     String REGISTER_SELF_PRESERVATION_MODE_ENABLED = "register.self.preservation.mode.enabled";
     /**
-     * lease 失效保护
-     */
-    String REGISTER_LEASE_EXPIRATION_ENABLED = "register.lease.expiration.enabled";
-    /**
      * 多长时间清除失效节点
      */
     String REGISTER_EVICTION_INTERVAL = "register.eviction.interval";

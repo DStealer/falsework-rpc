@@ -135,15 +135,14 @@ message GroupResponse {
 //组变化查询
 message DeltaGroupRequest {
     falsework.common.RequestMeta meta = 1;
-    string groupName = 2;
-    string groupHashInfo = 3;
+    map<string, string> groupHashInfo = 3;
 }
 message DeltaGroupResponse {
     falsework.common.ResponseMeta meta = 1;
-    GroupInfo groupInfo = 2;
+    repeated GroupInfo groupInfoList = 2;
 }
 
-//服务变化查询
+//组所属服务变化查询
 message DeltaServiceRequest {
     falsework.common.RequestMeta meta = 1;
     string groupName = 2;
@@ -152,6 +151,18 @@ message DeltaServiceRequest {
 message DeltaServiceResponse {
     falsework.common.ResponseMeta meta = 1;
     repeated ServiceInfo serviceInfoList = 2;
+}
+
+//服务所属实例变化查询
+message DeltaInstanceRequest {
+    falsework.common.RequestMeta meta = 1;
+    string groupName = 2;
+    string serviceName = 3;
+    map<string, string> instanceHashInfo = 4;
+}
+message DeltaInstanceResponse {
+    falsework.common.ResponseMeta meta = 1;
+    repeated InstanceInfo instanceInfoList = 2;
 }
 
 service DiscoveryService {
@@ -171,8 +182,10 @@ service DiscoveryService {
     }
     rpc group (GroupRequest) returns (GroupResponse) {
     }
+    rpc deltaGroup (DeltaGroupRequest) returns (DeltaGroupResponse) {
+    }
     rpc deltaService (DeltaServiceRequest) returns (DeltaServiceResponse) {
     }
-    rpc deltaGroup (DeltaGroupRequest) returns (DeltaServiceResponse) {
+    rpc deltaInstance (DeltaInstanceRequest) returns (DeltaInstanceResponse) {
     }
 }
