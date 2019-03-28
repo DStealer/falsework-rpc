@@ -12,7 +12,7 @@ import java.util.Set;
 public class LifecycleServer implements ServerLifecycle {
     private static final Logger LOGGER = LoggerFactory.getLogger(LifecycleServer.class);
     private final Server server;
-    private final Set<ServerLifecycleListener> listeners;
+    private final Set<ServerListener> listeners;
     private boolean running;
 
     public LifecycleServer(Server server) {
@@ -22,17 +22,17 @@ public class LifecycleServer implements ServerLifecycle {
     }
 
     @Override
-    public void addLifecycleListener(ServerLifecycleListener listener) {
+    public void addListener(ServerListener listener) {
         this.listeners.add(listener);
     }
 
     @Override
-    public Set<ServerLifecycleListener> findLifecycleListeners() {
+    public Set<ServerListener> findListeners() {
         return Collections.unmodifiableSet(this.listeners);
     }
 
     @Override
-    public void removeLifecycleListener(ServerLifecycleListener listener) {
+    public void removeListener(ServerListener listener) {
         this.listeners.remove(listener);
     }
 
@@ -45,12 +45,12 @@ public class LifecycleServer implements ServerLifecycle {
         } else {
             this.running = true;
         }
-        for (ServerLifecycleListener listener : this.listeners) {
+        for (ServerListener listener : this.listeners) {
             listener.beforeStart();
         }
         this.server.start();
 
-        for (ServerLifecycleListener listener : this.listeners) {
+        for (ServerListener listener : this.listeners) {
             listener.afterStart();
         }
         Runtime.getRuntime()
@@ -75,13 +75,13 @@ public class LifecycleServer implements ServerLifecycle {
             this.running = false;
         }
 
-        for (ServerLifecycleListener listener : this.listeners) {
+        for (ServerListener listener : this.listeners) {
             listener.beforeStop();
         }
 
         this.server.shutdown();
 
-        for (ServerLifecycleListener listener : this.listeners) {
+        for (ServerListener listener : this.listeners) {
             listener.afterStop();
         }
     }

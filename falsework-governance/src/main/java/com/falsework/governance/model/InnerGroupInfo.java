@@ -6,7 +6,6 @@ import com.falsework.governance.generated.RegistryServiceInfo;
 import com.google.common.hash.Hashing;
 
 import javax.annotation.Nonnull;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -24,8 +23,8 @@ public class InnerGroupInfo implements Comparable<InnerGroupInfo> {
     public InnerGroupInfo(RegistryGroupInfo groupInfo) {
         this.groupName = groupInfo.getGroupName();
         this.serviceMap = new ConcurrentHashMap<>();
-        for (Map.Entry<String, RegistryServiceInfo> infoEntry : groupInfo.getServiceMapMap().entrySet()) {
-            this.serviceMap.put(infoEntry.getKey(), new InnerServiceInfo(infoEntry.getValue()));
+        for (RegistryServiceInfo info : groupInfo.getServicesList()) {
+            this.serviceMap.put(info.getServiceName(), new InnerServiceInfo(info));
         }
         this.hash = groupInfo.getHash();
     }
@@ -42,9 +41,17 @@ public class InnerGroupInfo implements Comparable<InnerGroupInfo> {
         return hash;
     }
 
+    public GroupInfo snapshot() {
+        GroupInfo.Builder builder = GroupInfo.newBuilder()
+                .setGroupName(this.groupName)
+                .setHash(this.reHash());
+        this.serviceMap.values().forEach(info -> builder.addServices(info.snapshot()));
+        return builder.build();
+    }
+
     @SuppressWarnings("all")
     public String reHash() {
-        this.hash = Hashing.goodFastHash(32)
+        this.hash = Hashing.goodFastHash(128)
                 .hashUnencodedChars(this.serviceMap.values().stream()
                         .sorted()
                         .map(InnerServiceInfo::reHash)
@@ -53,13 +60,11 @@ public class InnerGroupInfo implements Comparable<InnerGroupInfo> {
         return this.hash;
     }
 
-    public GroupInfo snapshot() {
-        GroupInfo.Builder builder = GroupInfo.newBuilder()
+    public RegistryGroupInfo replicaSnapshot() {
+        RegistryGroupInfo.Builder builder = RegistryGroupInfo.newBuilder()
                 .setGroupName(this.groupName)
                 .setHash(this.reHash());
-        for (Map.Entry<String, InnerServiceInfo> infoEntry : this.serviceMap.entrySet()) {
-            builder.putServiceMap(infoEntry.getKey(), infoEntry.getValue().snapshot());
-        }
+        this.serviceMap.values().forEach(info -> builder.addServices(info.replicaSnapshot()));
         return builder.build();
     }
 

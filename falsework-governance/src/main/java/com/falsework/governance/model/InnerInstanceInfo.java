@@ -2,8 +2,11 @@ package com.falsework.governance.model;
 
 import com.falsework.core.generated.governance.InstanceInfo;
 import com.falsework.core.generated.governance.InstanceStatus;
+import com.falsework.governance.generated.RegistryInstanceInfo;
 
 import javax.annotation.Nonnull;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
     private final String instanceId;
@@ -11,8 +14,8 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
     private final String groupName;
     private final String ipAddress;
     private final int port;
+    private final Map<String, String> attributes;
     private volatile InstanceStatus status;
-    private volatile long lastUpdateTimestamp;
     private volatile String hash;
 
     public InnerInstanceInfo(InstanceInfo instanceInfo) {
@@ -22,9 +25,19 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
         this.ipAddress = instanceInfo.getIpAddress();
         this.port = instanceInfo.getPort();
         this.status = instanceInfo.getStatus();
+        this.attributes = new ConcurrentHashMap<>(instanceInfo.getAttributesMap());
         this.hash = instanceInfo.getHash();
-        this.lastUpdateTimestamp = System.currentTimeMillis();
+    }
 
+    public InnerInstanceInfo(RegistryInstanceInfo instanceInfo) {
+        this.instanceId = instanceInfo.getInstanceId();
+        this.serviceName = instanceInfo.getServiceName();
+        this.groupName = instanceInfo.getGroupName();
+        this.ipAddress = instanceInfo.getIpAddress();
+        this.port = instanceInfo.getPort();
+        this.status = instanceInfo.getStatus();
+        this.attributes = new ConcurrentHashMap<>(instanceInfo.getAttributesMap());
+        this.hash = instanceInfo.getHash();
     }
 
     public String getInstanceId() {
@@ -56,17 +69,8 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
         this.status = status;
     }
 
-    public long getLastUpdateTimestamp() {
-        return lastUpdateTimestamp;
-    }
-
-    public void setLastUpdateTimestamp(long lastUpdateTimestamp) {
-        this.lastUpdateTimestamp = lastUpdateTimestamp;
-    }
-
-    public String reHash() {
-        this.hash = String.format("%s|%d", this.instanceId, this.lastUpdateTimestamp);
-        return this.hash;
+    public Map<String, String> getAttributes() {
+        return attributes;
     }
 
     public String getHash() {
@@ -81,6 +85,25 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
                 .setIpAddress(this.ipAddress)
                 .setPort(this.port)
                 .setStatus(this.status)
+                .putAllAttributes(this.attributes)
+                .setHash(this.reHash())
+                .build();
+    }
+
+    public String reHash() {
+        this.hash = String.format("%s|%d", this.instanceId, this.status.getNumber());
+        return this.hash;
+    }
+
+    public RegistryInstanceInfo replicaSnapshot() {
+        return RegistryInstanceInfo.newBuilder()
+                .setInstanceId(this.instanceId)
+                .setServiceName(this.serviceName)
+                .setGroupName(this.groupName)
+                .setIpAddress(this.ipAddress)
+                .setPort(this.port)
+                .setStatus(this.status)
+                .putAllAttributes(this.attributes)
                 .setHash(this.reHash())
                 .build();
     }

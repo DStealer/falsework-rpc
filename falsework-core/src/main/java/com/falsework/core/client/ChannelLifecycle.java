@@ -8,21 +8,21 @@ public interface ChannelLifecycle {
      *
      * @param listener
      */
-    void addLifecycleListener(ChannelLifecycleListener listener);
+    void addListener(ChannelListener listener);
 
     /**
      * 查找监听器
      *
      * @return
      */
-    Set<ChannelLifecycleListener> findLifecycleListeners();
+    Set<ChannelListener> findListeners();
 
     /**
      * 移除监听器
      *
      * @param listener
      */
-    void removeLifecycleListener(ChannelLifecycleListener listener);
+    void removeListener(ChannelListener listener);
 
     /**
      * 启动

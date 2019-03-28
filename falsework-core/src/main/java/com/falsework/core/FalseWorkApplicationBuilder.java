@@ -2,14 +2,15 @@ package com.falsework.core;
 
 import com.falsework.core.common.Builder;
 import com.falsework.core.common.Holder;
+import com.falsework.core.common.MoreExecuters;
 import com.falsework.core.composite.FixInstanceModule;
 import com.falsework.core.composite.SystemUtil;
 import com.falsework.core.config.Props;
 import com.falsework.core.config.PropsManager;
 import com.falsework.core.config.PropsVars;
 import com.falsework.core.governance.DiscoveryClient;
+import com.falsework.core.governance.DiscoveryLifeListener;
 import com.falsework.core.governance.DiscoveryNameResolverProvider;
-import com.falsework.core.governance.DiscoveryRegister;
 import com.falsework.core.grpc.CompositeResolverFactoryManager;
 import com.falsework.core.grpc.HttpResolverProvider;
 import com.falsework.core.grpc.LoadBalancerPolicyManager;
@@ -20,7 +21,10 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Stage;
-import io.grpc.*;
+import io.grpc.BindableService;
+import io.grpc.Server;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerServiceDefinition;
 import io.grpc.netty.InternalNettyServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.netty.util.NettyRuntime;
@@ -34,7 +38,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 
 /**
  * 应用构建器
@@ -44,7 +47,7 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
     private final String propsFileName;
     private final Set<AbstractModule> modules = new LinkedHashSet<>();
     private final Set<ServerInterceptor> interceptors = new LinkedHashSet<>();
-    private final Set<ServerLifecycleListener> listeners = new LinkedHashSet<>();
+    private final Set<ServerListener> listeners = new LinkedHashSet<>();
     private final Holder<Stage> stageHolder = new Holder<>(Stage.PRODUCTION);
     private final Map<String, Object> global = new ConcurrentHashMap<>();
 
@@ -84,7 +87,7 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
         return this;
     }
 
-    public FalseWorkApplicationBuilder withListener(ServerLifecycleListener listener) {
+    public FalseWorkApplicationBuilder withListener(ServerListener listener) {
         this.listeners.add(listener);
         return this;
     }
@@ -98,11 +101,6 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
         build().run().sync();
     }
 
-    public void runAsync() throws Exception {
-        build().run().async();
-    }
-
-
     @Override
     public FalseWorkApplication build() {
         Props props = PropsManager.initConfig(this.propsFileName);
@@ -111,25 +109,19 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
 
         int threadChannelNumber = props.getInt(PropsVars.CHANNEL_THREAD_POOL_SIZE, NettyRuntime.availableProcessors() * 2);
         //使用共享线程池
-        SharedExecutorManager.setShared(Executors.newFixedThreadPool(threadChannelNumber, new ThreadFactoryBuilder()
+        SharedExecutorManager.setShared(MoreExecuters.newStretchThreadPool(threadChannelNumber, new ThreadFactoryBuilder()
                 .setNameFormat("channel-executor-%d").build()));
         LOGGER.info("channel thread pool size:{}", threadChannelNumber);
         //命名解析
         CompositeResolverFactoryManager.addFactory(HttpResolverProvider.SINGLTON);
 
-        ServerRegister register;
         boolean discovery = props.existSubProps(PropsVars.DISCOVERY_PREFIX);
         if (discovery) {
             DiscoveryClient client = new DiscoveryClient(props);
-            client.init();
-            CompositeResolverFactoryManager.addFactory(new DiscoveryNameResolverProvider(client));
-            if (client.isRegisterSelf()) {
-                register = new DiscoveryRegister(client);
-            } else {
-                register = ServerRegister.NO_OP;
+            if (client.isFetchRegistryEnable()) {
+                CompositeResolverFactoryManager.addFactory(new DiscoveryNameResolverProvider(client));
             }
-        } else {
-            register = ServerRegister.NO_OP;
+            this.listeners.add(new DiscoveryLifeListener(client));
         }
 
         this.modules.add(new FixInstanceModule<>(Map.class, this.global));
@@ -157,10 +149,9 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
                 .map(e -> (ServerServiceDefinition) e.getValue().getProvider().get()).forEach(builder::addService);
 
         int threadServerNumber = props.getInt(PropsVars.SERVER_THREAD_POOL_SIZE, NettyRuntime.availableProcessors() * 4);
-        builder.executor(Executors.newFixedThreadPool(threadServerNumber, new ThreadFactoryBuilder()
+        builder.executor(MoreExecuters.newStretchThreadPool(threadServerNumber, new ThreadFactoryBuilder()
                 .setNameFormat("server-executor-%d").build()));
         LOGGER.info("server thread pool size:{}", threadServerNumber);
-
 
         builder.intercept(TimedInterceptor.getInstance());
 
@@ -173,15 +164,19 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
 
         // 启动listener
         injector.getAllBindings().entrySet().stream()
-                .filter(e -> ServerLifecycleListener.class.isAssignableFrom(e.getKey().getTypeLiteral().getRawType()))
-                .map(e -> (ServerLifecycleListener) e.getValue().getProvider().get()).forEach(this.listeners::add);
+                .filter(e -> ServerListener.class.isAssignableFrom(e.getKey().getTypeLiteral().getRawType()))
+                .map(e -> (ServerListener) e.getValue().getProvider().get()).forEach(this.listeners::add);
 
         LifecycleServer lifecycleServer = new LifecycleServer(server);
-        for (ServerLifecycleListener listener : this.listeners) {
-            lifecycleServer.addLifecycleListener(listener);
+        for (ServerListener listener : this.listeners) {
+            lifecycleServer.addListener(listener);
         }
 
         InternalNettyServerBuilder.setStatsRecordStartedRpcs(builder, false);
-        return new FalseWorkApplication(lifecycleServer, injector, register);
+        return new FalseWorkApplication(lifecycleServer, injector);
+    }
+
+    public void runAsync() throws Exception {
+        build().run().async();
     }
 }

@@ -6,40 +6,34 @@ import com.falsework.governance.generated.RegistryServiceInfo;
 import com.google.common.hash.Hashing;
 
 import javax.annotation.Nonnull;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class InnerServiceInfo implements Comparable<InnerServiceInfo> {
     private final String serviceName;
     private final String groupName;
-    private final ConcurrentHashMap<String, LeaseInfo> instanceMap;
+    private final ConcurrentHashMap<String, InstanceLeaseInfo> LeaseMap;
     private volatile String hash;
 
     public InnerServiceInfo(String groupName, String serviceName) {
         this.groupName = groupName;
         this.serviceName = serviceName;
-        this.instanceMap = new ConcurrentHashMap<>();
+        this.LeaseMap = new ConcurrentHashMap<>();
         this.hash = "";
     }
 
     public InnerServiceInfo(RegistryServiceInfo serviceInfo) {
         this.serviceName = serviceInfo.getServiceName();
         this.groupName = serviceInfo.getGroupName();
-        this.instanceMap = new ConcurrentHashMap<>();
-
-        for (Map.Entry<String, RegistryLeaseInfo> entry : serviceInfo.getLeaseMapMap().entrySet()) {
-            this.instanceMap.put(entry.getKey(), new LeaseInfo(entry.getValue()));
+        this.LeaseMap = new ConcurrentHashMap<>();
+        for (RegistryLeaseInfo info : serviceInfo.getLeasesList()) {
+            this.LeaseMap.put(info.getInstance().getInstanceId(), new InstanceLeaseInfo(info));
         }
         this.hash = serviceInfo.getHash();
     }
 
     public String getHash() {
         return hash;
-    }
-
-    public ConcurrentHashMap<String, LeaseInfo> getInstanceMap() {
-        return instanceMap;
     }
 
     public String getGroupName() {
@@ -50,30 +44,40 @@ public class InnerServiceInfo implements Comparable<InnerServiceInfo> {
         return serviceName;
     }
 
-    @SuppressWarnings("all")
-    public String reHash() {
-        this.hash = Hashing.goodFastHash(32)
-                .hashUnencodedChars(this.instanceMap.values()
-                        .stream()
-                        .map(LeaseInfo::getHolder)
-                        .sorted()
-                        .map(InnerInstanceInfo::reHash)
-                        .collect(Collectors.joining()))
-                .toString();
-        return this.hash;
+    public ConcurrentHashMap<String, InstanceLeaseInfo> getLeaseMap() {
+        return LeaseMap;
     }
-
 
     public ServiceInfo snapshot() {
         ServiceInfo.Builder builder = ServiceInfo.newBuilder()
                 .setGroupName(this.groupName)
                 .setServiceName(this.serviceName)
                 .setHash(this.reHash());
-        for (Map.Entry<String, LeaseInfo> entry : this.instanceMap.entrySet()) {
-            builder.putInstanceMap(entry.getKey(), entry.getValue().getHolder().snapshot());
-        }
+        this.LeaseMap.values().forEach(info -> builder.addInstances(info.snapshot()));
         return builder.build();
     }
+
+    @SuppressWarnings("all")
+    public String reHash() {
+        this.hash = Hashing.goodFastHash(128)
+                .hashUnencodedChars(this.LeaseMap.values()
+                        .stream()
+                        .sorted()
+                        .map(InstanceLeaseInfo::reHash)
+                        .collect(Collectors.joining()))
+                .toString();
+        return this.hash;
+    }
+
+    public RegistryServiceInfo replicaSnapshot() {
+        RegistryServiceInfo.Builder builder = RegistryServiceInfo.newBuilder()
+                .setServiceName(this.serviceName)
+                .setGroupName(this.groupName)
+                .setHash(this.reHash());
+        this.getLeaseMap().values().forEach(e -> builder.addLeases(e.replicaSnapshot()));
+        return builder.build();
+    }
+
 
     @Override
     public int compareTo(@Nonnull InnerServiceInfo o) {

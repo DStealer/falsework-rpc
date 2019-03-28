@@ -1,6 +1,6 @@
 package com.falsework.client.background;
 
-import com.falsework.core.server.ServerLifecycleListener;
+import com.falsework.core.server.ServerListener;
 import com.falsework.service.generated.EchoRequest;
 import com.falsework.service.generated.EchoResponse;
 import com.falsework.service.generated.EchoServiceGrpc;
@@ -13,7 +13,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
-public class EchoCaller implements ServerLifecycleListener {
+public class EchoCaller implements ServerListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(EchoCaller.class);
     private final Timer timer;
     private final EchoServiceGrpc.EchoServiceStub stub;

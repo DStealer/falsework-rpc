@@ -11,7 +11,7 @@ public interface PropsVars extends com.falsework.core.config.PropsVars {
     /**
      * 自我保护模式
      */
-    String REGISTER_SELF_PRESERVATION_MODE_ENABLED = "register.self.preservation.mode.enabled";
+    String REGISTER_PRESERVATION_MODE_ENABLED = "register.preservation.mode.enabled";
     /**
      * 多长时间清除失效节点
      */

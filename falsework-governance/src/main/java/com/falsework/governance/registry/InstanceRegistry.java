@@ -7,10 +7,14 @@ import com.falsework.core.generated.governance.InstanceStatus;
 import com.falsework.core.generated.governance.ServiceInfo;
 import com.falsework.governance.composite.ErrorCode;
 import com.falsework.governance.config.PropsVars;
+import com.falsework.governance.generated.RegistryGroupInfo;
+import com.falsework.governance.generated.RegistryInstanceInfo;
+import com.falsework.governance.generated.RegistryLeaseInfo;
 import com.falsework.governance.model.InnerGroupInfo;
 import com.falsework.governance.model.InnerInstanceInfo;
 import com.falsework.governance.model.InnerServiceInfo;
-import com.falsework.governance.model.LeaseInfo;
+import com.falsework.governance.model.InstanceLeaseInfo;
+import com.falsework.governance.peers.ReplicationPeers;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 @Singleton
 public class InstanceRegistry {
@@ -29,12 +34,20 @@ public class InstanceRegistry {
     private final ConcurrentHashMap<String, InnerGroupInfo> multiGroupInfo = new ConcurrentHashMap<>();
     private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();//需要同步的读写锁
     private final long evictionIntervalMs;
+    private final boolean preservationModeEnabled;
+    private final ReplicationPeers replicationPeers;
     private Timer evictionTimer = new Timer("governance-eviction-timer", true); //失效移除任务
 
     @Inject
     public InstanceRegistry(Props props) {
         this.props = props;
         this.evictionIntervalMs = this.props.getLong(PropsVars.REGISTER_EVICTION_INTERVAL);
+        this.preservationModeEnabled = this.props.getBoolean(PropsVars.REGISTER_PRESERVATION_MODE_ENABLED);
+        if (this.props.existProps(PropsVars.REGISTER_PEER_ADDRESS)) {
+            this.replicationPeers = new ReplicationPeers(this, props);
+        } else {
+            this.replicationPeers = null;
+        }
     }
 
 
@@ -42,10 +55,9 @@ public class InstanceRegistry {
      * 服务注册
      *
      * @param instanceInfo
-     * @param durationInSecs
+     * @param durationInMs
      */
-    public void register(final InstanceInfo instanceInfo, final long durationInSecs) {
-        LOGGER.info("register:{}", instanceInfo.getInstanceId());
+    public void register(final InstanceInfo instanceInfo, final long durationInMs) {
         try {
             this.readWriteLock.readLock().lock();
             InnerGroupInfo groupInfo = this.multiGroupInfo.computeIfAbsent(instanceInfo.getGroupName(), k -> {
@@ -58,11 +70,16 @@ public class InstanceRegistry {
                 return new InnerServiceInfo(instanceInfo.getGroupName(), instanceInfo.getServiceName());
             });
 
-            LeaseInfo instanceInfoLease = serviceInfo.getInstanceMap().computeIfAbsent(instanceInfo.getInstanceId(), k -> {
+            InstanceLeaseInfo instanceInfoLease = serviceInfo.getLeaseMap().computeIfAbsent(instanceInfo.getInstanceId(), k -> {
                 LOGGER.info("lease:{} can't find build it", k);
-                return new LeaseInfo(new InnerInstanceInfo(instanceInfo), durationInSecs);
+                return new InstanceLeaseInfo(new InnerInstanceInfo(instanceInfo), durationInMs);
             });
+
             instanceInfoLease.renew();
+
+            if (this.replicationPeers != null) {
+                this.replicationPeers.register(instanceInfoLease.replicaSnapshot());
+            }
             LOGGER.info("register success");
         } finally {
             this.readWriteLock.readLock().unlock();
@@ -77,15 +94,23 @@ public class InstanceRegistry {
      * @param instanceId
      */
     public void cancel(String groupName, String serviceName, String instanceId) {
-        LOGGER.info("cancel group:{},service:{},instance:{}", groupName, serviceName, instanceId);
         try {
             this.readWriteLock.readLock().lock();
             InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
-            if (groupInfo != null) {
-                InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
-                if (serviceInfo != null) {
-                    serviceInfo.getInstanceMap().remove(instanceId);
-                }
+            if (groupInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("group not find");
+            }
+            InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+            if (serviceInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("service not find");
+            }
+            InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+            if (leaseInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("instance not find");
+            }
+            serviceInfo.getLeaseMap().remove(instanceId);
+            if (this.replicationPeers != null) {
+                this.replicationPeers.cancel(groupName, serviceName, instanceId);
             }
             LOGGER.info("cancel success");
         } finally {
@@ -102,7 +127,7 @@ public class InstanceRegistry {
      * @param instanceId
      * @return
      */
-    public void heartbeat(String groupName, String serviceName, String instanceId) {
+    public void renew(String groupName, String serviceName, String instanceId) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("group not find");
@@ -111,11 +136,14 @@ public class InstanceRegistry {
         if (serviceInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("service not find");
         }
-        LeaseInfo instanceInfoLease = serviceInfo.getInstanceMap().get(instanceId);
-        if (instanceInfoLease == null) {
+        InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+        if (leaseInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("instance not find");
         }
-        instanceInfoLease.renew();
+        leaseInfo.renew();
+        if (this.replicationPeers != null) {
+            this.replicationPeers.renew(groupName, serviceName, instanceId, leaseInfo.getLastDirtyTimestamp());
+        }
     }
 
     /**
@@ -127,7 +155,8 @@ public class InstanceRegistry {
      * @param status
      * @return
      */
-    public void change(String groupName, String serviceName, String instanceId, InstanceStatus status) {
+    public void change(String groupName, String serviceName, String instanceId, InstanceStatus status,
+                       Map<String, String> attributesMap) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("group not find");
@@ -136,85 +165,19 @@ public class InstanceRegistry {
         if (serviceInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("service not find");
         }
-        LeaseInfo instanceInfoLease = serviceInfo.getInstanceMap().get(instanceId);
-        if (instanceInfoLease == null) {
+        InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+        if (leaseInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("instance not find");
         }
-        instanceInfoLease.getHolder().setStatus(status);
-    }
-
-    /**
-     * 驱逐失效节点
-     *
-     * @param additionalLeaseMs
-     */
-    private void evict(long additionalLeaseMs) {
-        LOGGER.info("Running the evict task...");
-        if (!isLeaseExpirationEnabled()) {
-            LOGGER.info("lease expiration is currently disabled.");
-            return;
+        InnerInstanceInfo instanceInfo = leaseInfo.getInstanceInfo();
+        instanceInfo.setStatus(status);
+        instanceInfo.getAttributes().clear();
+        instanceInfo.getAttributes().putAll(attributesMap);
+        leaseInfo.setLastDirtyTimestamp(System.currentTimeMillis());
+        if (this.replicationPeers != null) {
+            this.replicationPeers.change(groupName, serviceName, instanceId, status,
+                    attributesMap, leaseInfo.getLastDirtyTimestamp());
         }
-        //先收集失效lease
-        List<LeaseInfo> expiredLeases = new ArrayList<>();
-        int registrySize = 0;
-        for (Map.Entry<String, InnerGroupInfo> groupInfoEntry : this.multiGroupInfo.entrySet()) {
-            for (Map.Entry<String, InnerServiceInfo> serviceInfoEntry : groupInfoEntry.getValue().getServiceMap().entrySet()) {
-                for (Map.Entry<String, LeaseInfo> leaseMap : serviceInfoEntry.getValue().getInstanceMap().entrySet()) {
-                    registrySize++;
-                    LeaseInfo lease = leaseMap.getValue();
-                    if (lease.isExpired(additionalLeaseMs)) {
-                        expiredLeases.add(lease);
-                    }
-                }
-            }
-        }
-        if (expiredLeases.size() == 0) {
-            LOGGER.info("find zero lease expiration");
-            return;
-        }
-        int registrySizeThreshold = (int) (registrySize * 0.85);
-        int evictionLimit = registrySize - registrySizeThreshold;
-        int toEvict = Math.min(expiredLeases.size(), evictionLimit);
-        if (toEvict > 0) {
-            LOGGER.info("Evicting {} items (expired={}, evictionLimit={})", toEvict, expiredLeases.size(), evictionLimit);
-            Random random = new Random(System.currentTimeMillis());
-            for (int i = 0; i < toEvict; i++) {
-                // 随机选取进行移除
-                int next = i + random.nextInt(expiredLeases.size() - i);
-                Collections.swap(expiredLeases, i, next);
-                LeaseInfo lease = expiredLeases.get(i);
-                String groupName = lease.getHolder().getGroupName();
-                String serviceName = lease.getHolder().getServiceName();
-                String instanceId = lease.getHolder().getInstanceId();
-                LOGGER.info("Registry expired lease for {}|{}|{}", groupName, serviceName, instanceId);
-                try {
-                    this.readWriteLock.readLock().lock();
-                    InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
-                    if (groupInfo == null) {
-                        continue;
-                    }
-                    InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
-                    if (serviceInfo == null) {
-                        continue;
-                    }
-                    serviceInfo.getInstanceMap().remove(instanceId);
-                } finally {
-                    this.readWriteLock.readLock().unlock();
-                }
-            }
-        }
-
-    }
-
-    private boolean isSelfPreservationModeEnabled() {
-        return this.props.getBoolean(PropsVars.REGISTER_SELF_PRESERVATION_MODE_ENABLED);
-    }
-
-    private boolean isLeaseExpirationEnabled() {
-        if (!isSelfPreservationModeEnabled()) {
-            return true;
-        }
-        return true; //需要计算
     }
 
     /**
@@ -223,6 +186,15 @@ public class InstanceRegistry {
      * @throws Exception
      */
     public void start() throws Exception {
+        LOGGER.info("start instance registry...");
+        if (this.replicationPeers != null) {
+            this.replicationPeers.start();
+            this.syncUp();
+        } else {
+            LOGGER.info("replication function disable");
+        }
+
+        LOGGER.info("schedule evict timer task with {}ms", this.evictionIntervalMs);
         this.evictionTimer.schedule(new TimerTask() {
                                         private final AtomicLong lastExecutionNanosRef = new AtomicLong(0L);
 
@@ -246,15 +218,114 @@ public class InstanceRegistry {
                                     },
                 this.evictionIntervalMs,
                 this.evictionIntervalMs);
+        LOGGER.info("instance registry! start Ok...");
     }
 
     /**
-     * 依赖服务关闭
+     * 从其他节点同步库
+     */
+    private void syncUp() {
+        LOGGER.info("sync up enabled...");
+        Collection<RegistryGroupInfo> registryGroupInfos = this.replicationPeers.tryFetchRegistry();
+
+        if (registryGroupInfos.size() > 0) {
+            LOGGER.info("fetch registry from remote peer registry:\n{}", registryGroupInfos);
+            try {
+                this.readWriteLock.writeLock().lock();
+                for (RegistryGroupInfo info : registryGroupInfos) {
+                    this.multiGroupInfo.put(info.getGroupName(), new InnerGroupInfo(info));
+                }
+            } finally {
+                this.readWriteLock.writeLock().unlock();
+            }
+            LOGGER.info("sync success ,Ok...");
+        } else {
+            LOGGER.info("sync zero instance...!!!");
+        }
+    }
+
+    /**
+     * 驱逐失效节点
+     *
+     * @param additionalLeaseMs
+     */
+    private void evict(long additionalLeaseMs) {
+        LOGGER.info("Running the evict task...");
+        if (!isLeaseExpirationEnabled()) {
+            LOGGER.info("lease expiration is currently disabled.");
+            return;
+        }
+        //先收集失效lease
+        List<InstanceLeaseInfo> expiredLeases = new ArrayList<>();
+        int registrySize = 0;
+        for (Map.Entry<String, InnerGroupInfo> groupInfoEntry : this.multiGroupInfo.entrySet()) {
+            for (Map.Entry<String, InnerServiceInfo> serviceInfoEntry : groupInfoEntry.getValue().getServiceMap().entrySet()) {
+                for (Map.Entry<String, InstanceLeaseInfo> leaseMap : serviceInfoEntry.getValue().getLeaseMap().entrySet()) {
+                    registrySize++;
+                    InstanceLeaseInfo lease = leaseMap.getValue();
+                    if (lease.isExpired(additionalLeaseMs)) {
+                        lease.getInstanceInfo().setStatus(InstanceStatus.UNKNOWN);
+                        expiredLeases.add(lease);
+                    }
+                }
+            }
+        }
+        if (expiredLeases.size() == 0) {
+            LOGGER.info("find zero lease expiration");
+            return;
+        }
+        int registrySizeThreshold = (int) (registrySize * 0.85);
+        int evictionLimit = registrySize - registrySizeThreshold;
+        int toEvict = Math.min(expiredLeases.size(), evictionLimit);
+        if (toEvict > 0) {
+            LOGGER.info("Evicting {} items (expired={}, evictionLimit={})", toEvict, expiredLeases.size(), evictionLimit);
+            Random random = new Random(System.currentTimeMillis());
+            for (int i = 0; i < toEvict; i++) {
+                // 随机选取进行移除
+                int next = i + random.nextInt(expiredLeases.size() - i);
+                Collections.swap(expiredLeases, i, next);
+                InstanceLeaseInfo lease = expiredLeases.get(i);
+                String groupName = lease.getInstanceInfo().getGroupName();
+                String serviceName = lease.getInstanceInfo().getServiceName();
+                String instanceId = lease.getInstanceInfo().getInstanceId();
+                LOGGER.info("Registry expired lease for {}|{}|{}", groupName, serviceName, instanceId);
+                try {
+                    this.readWriteLock.readLock().lock();
+                    InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+                    if (groupInfo == null) {
+                        continue;
+                    }
+                    InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+                    if (serviceInfo == null) {
+                        continue;
+                    }
+                    serviceInfo.getLeaseMap().remove(instanceId);
+                } finally {
+                    this.readWriteLock.readLock().unlock();
+                }
+            }
+        }
+
+    }
+
+    private boolean isLeaseExpirationEnabled() {
+        if (!this.preservationModeEnabled) {
+            return true;
+        }
+        return true; //需要计算
+    }
+
+    /**
+     * 服务关闭
      *
      * @throws Exception
      */
     public void stop() throws Exception {
+        LOGGER.info("instance registry! stop...");
+        this.replicationPeers.stop();
         this.evictionTimer.cancel();
+        this.multiGroupInfo.clear();
+        LOGGER.info("stop finished...");
     }
 
     /**
@@ -287,12 +358,12 @@ public class InstanceRegistry {
      * @param groupName
      * @return
      */
-    public Optional<GroupInfo> group(String groupName) {
+    public GroupInfo group(String groupName) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
-            return Optional.empty();
+            throw ErrorCode.NOT_FOUND.asException("group not found");
         }
-        return Optional.of(groupInfo.snapshot());
+        return groupInfo.snapshot();
     }
 
     /**
@@ -302,16 +373,16 @@ public class InstanceRegistry {
      * @param serviceName
      * @return
      */
-    public Optional<ServiceInfo> service(String groupName, String serviceName) {
+    public ServiceInfo service(String groupName, String serviceName) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
-            return Optional.empty();
+            throw ErrorCode.NOT_FOUND.asException("group not found");
         }
         InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
         if (serviceInfo == null) {
-            return Optional.empty();
+            throw ErrorCode.NOT_FOUND.asException("service not found");
         }
-        return Optional.of(serviceInfo.snapshot());
+        return serviceInfo.snapshot();
     }
 
     /**
@@ -321,7 +392,31 @@ public class InstanceRegistry {
      * @param serviceName
      * @return
      */
-    public Optional<InstanceInfo> instance(String groupName, String serviceName, String instanceId) {
+    public InstanceInfo instance(String groupName, String serviceName, String instanceId) {
+        InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+        if (groupInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("group not found");
+        }
+        InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+        if (serviceInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("service not found");
+        }
+        InstanceLeaseInfo instanceInfoLease = serviceInfo.getLeaseMap().get(instanceId);
+        if (instanceInfoLease == null) {
+            throw ErrorCode.NOT_FOUND.asException("instance not found");
+        }
+        return instanceInfoLease.getInstanceInfo().snapshot();
+    }
+
+    /**
+     * 查找lease
+     *
+     * @param groupName
+     * @param serviceName
+     * @param instanceId
+     * @return
+     */
+    public Optional<InstanceLeaseInfo> findLeaseOptional(String groupName, String serviceName, String instanceId) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
             return Optional.empty();
@@ -330,10 +425,9 @@ public class InstanceRegistry {
         if (serviceInfo == null) {
             return Optional.empty();
         }
-        LeaseInfo instanceInfoLease = serviceInfo.getInstanceMap().get(instanceId);
-        return Optional.of(instanceInfoLease.getHolder().snapshot());
+        InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+        return Optional.ofNullable(leaseInfo);
     }
-
 
     /**
      * 检测组变更
@@ -341,7 +435,7 @@ public class InstanceRegistry {
      * @param groupHashInfoMap
      * @return
      */
-    public List<GroupInfo> deltaGroup(Map<String, String> groupHashInfoMap) {
+    public Collection<GroupInfo> deltaGroup(Map<String, String> groupHashInfoMap) {
         List<GroupInfo> list = new ArrayList<>();
         for (Map.Entry<String, String> entry : groupHashInfoMap.entrySet()) {
             InnerGroupInfo info = this.multiGroupInfo.get(entry.getKey());
@@ -350,9 +444,7 @@ public class InstanceRegistry {
                         .setGroupName(entry.getKey())
                         .setHash("group not found")
                         .build());
-                continue;
-            }
-            if (!info.reHash().equals(entry.getValue())) {
+            } else if (!info.reHash().equals(entry.getValue())) {
                 list.add(info.snapshot());
             }
         }
@@ -367,7 +459,7 @@ public class InstanceRegistry {
      * @param serviceHashInfoMap
      * @return
      */
-    public List<ServiceInfo> deltaService(String groupName, Map<String, String> serviceHashInfoMap) {
+    public Collection<ServiceInfo> deltaService(String groupName, Map<String, String> serviceHashInfoMap) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("group not find");
@@ -382,8 +474,7 @@ public class InstanceRegistry {
                         .setServiceName(entry.getKey())
                         .setHash("service not fund")
                         .build());
-            }
-            if (!serviceInfo.reHash().equals(entry.getValue())) {
+            } else if (!serviceInfo.reHash().equals(entry.getValue())) {
                 list.add(serviceInfo.snapshot());
             }
         }
@@ -399,7 +490,7 @@ public class InstanceRegistry {
      * @param instanceHashInfoMap
      * @return
      */
-    public List<InstanceInfo> deltaInstance(String groupName, String serviceName, Map<String, String> instanceHashInfoMap) {
+    public Collection<InstanceInfo> deltaInstance(String groupName, String serviceName, Map<String, String> instanceHashInfoMap) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("group not found");
@@ -408,23 +499,175 @@ public class InstanceRegistry {
         if (serviceInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("service not found");
         }
-        ConcurrentHashMap<String, LeaseInfo> instanceMap = serviceInfo.getInstanceMap();
+        ConcurrentHashMap<String, InstanceLeaseInfo> instanceMap = serviceInfo.getLeaseMap();
         List<InstanceInfo> list = new ArrayList<>();
         for (Map.Entry<String, String> entry : instanceHashInfoMap.entrySet()) {
-            LeaseInfo info = instanceMap.get(entry.getKey());
+            InstanceLeaseInfo info = instanceMap.get(entry.getKey());
             if (info == null) {
                 list.add(InstanceInfo.newBuilder()
                         .setGroupName(groupName)
                         .setServiceName(serviceName)
                         .setInstanceId(entry.getKey())
-                        .setHash("instance not fund")
+                        .setHash("not found")
                         .build());
-                continue;
-            }
-            if (!info.getHolder().reHash().equals(entry.getValue())) {
-                list.add(info.getHolder().snapshot());
+            } else if (!info.reHash().equals(entry.getValue())) {
+                list.add(info.getInstanceInfo().snapshot());
             }
         }
         return list;
+    }
+
+    /**
+     * 导出整个库,需要读锁,防止在在库同步的时候导出{@link #syncUp()}
+     *
+     * @return
+     */
+    public Collection<RegistryGroupInfo> replicaRegistry() {
+        try {
+            this.readWriteLock.readLock().lock();
+            return this.multiGroupInfo.values().stream()
+                    .map(InnerGroupInfo::replicaSnapshot)
+                    .collect(Collectors.toList());
+        } finally {
+            this.readWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * 复制请求注册
+     *
+     * @param lease
+     */
+    public void replicaRegister(RegistryLeaseInfo lease) {
+        RegistryInstanceInfo instance = lease.getInstance();
+        try {
+            this.readWriteLock.readLock().lock();
+            InnerGroupInfo groupInfo = this.multiGroupInfo.computeIfAbsent(instance.getGroupName(), k -> {
+                LOGGER.info("group:{} can't find build it", k);
+                return new InnerGroupInfo(k);
+            });
+
+            InnerServiceInfo serviceInfo = groupInfo.getServiceMap().computeIfAbsent(instance.getServiceName(), k -> {
+                LOGGER.info("service:{} can't find build it", k);
+                return new InnerServiceInfo(instance.getGroupName(), instance.getServiceName());
+            });
+
+            InstanceLeaseInfo existLease = serviceInfo.getLeaseMap().get(instance.getInstanceId());
+            if (existLease == null) {
+                serviceInfo.getLeaseMap().put(instance.getInstanceId(), new InstanceLeaseInfo(lease));
+                LOGGER.info("register success");
+            } else {
+                if (existLease.getLastDirtyTimestamp() < lease.getLastDirtyTimestamp()) {
+                    LOGGER.info("replace exist lease:{} <= {}", existLease.getLastDirtyTimestamp(), lease.getLastDirtyTimestamp());
+                    serviceInfo.getLeaseMap().put(instance.getInstanceId(), new InstanceLeaseInfo(lease));
+                } else {
+                    LOGGER.warn("oop!,this should not happen:{} > {}", existLease.getLastDirtyTimestamp(),
+                            lease.getLastDirtyTimestamp());
+                }
+            }
+        } finally {
+            this.readWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * 复制删除请求
+     *
+     * @param groupName
+     * @param serviceName
+     * @param instanceId
+     */
+    public void replicaCancel(String groupName, String serviceName, String instanceId) {
+        LOGGER.info("replica cancel group:{},service:{},instance:{}", groupName, serviceName, instanceId);
+        try {
+            this.readWriteLock.readLock().lock();
+            InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+            if (groupInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("group not find");
+            }
+            InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+            if (serviceInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("service not find");
+            }
+            InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+            if (leaseInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("instance not find");
+            }
+            serviceInfo.getLeaseMap().remove(instanceId);
+            LOGGER.info("cancel success");
+        } finally {
+            this.readWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * 复制状态更改
+     *
+     * @param groupName
+     * @param serviceName
+     * @param instanceId
+     * @param status
+     * @param attributesMap
+     * @param lastDirtyTimestamp
+     */
+    public void replicaChange(String groupName, String serviceName, String instanceId, InstanceStatus status,
+                              Map<String, String> attributesMap, long lastDirtyTimestamp) {
+        InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+        if (groupInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("group not find");
+        }
+        InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+        if (serviceInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("service not find");
+        }
+        InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+        if (leaseInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("instance not find");
+        }
+        if (leaseInfo.getLastDirtyTimestamp() <= lastDirtyTimestamp) {
+            InnerInstanceInfo instanceInfo = leaseInfo.getInstanceInfo();
+            instanceInfo.setStatus(status);
+            instanceInfo.getAttributes().clear();
+            instanceInfo.getAttributes().putAll(attributesMap);
+            leaseInfo.setLastDirtyTimestamp(lastDirtyTimestamp);
+            LOGGER.info("replica change success");
+        } else {
+            LOGGER.warn("oop!,this should not happen:{} > {}", leaseInfo.getLastDirtyTimestamp(),
+                    lastDirtyTimestamp);
+        }
+    }
+
+    /**
+     * 复制续约，如果
+     *
+     * @param groupName
+     * @param serviceName
+     * @param instanceId
+     * @param lastDirtyTimestamp
+     * @return
+     */
+    public RegistryLeaseInfo replicaRenew(String groupName, String serviceName, String instanceId, long lastDirtyTimestamp) {
+        InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+        if (groupInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("group not find");
+        }
+        InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+        if (serviceInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("service not find");
+        }
+        InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+        if (leaseInfo == null) {
+            throw ErrorCode.NOT_FOUND.asException("instance not find");
+        }
+        if (leaseInfo.getLastDirtyTimestamp() < lastDirtyTimestamp) {
+            LOGGER.warn("my instance is dirty...{}|{}|{}", groupName, serviceName, instanceId);
+            throw ErrorCode.NOT_FOUND.asException("instance is dirty");
+        } else if (leaseInfo.getLastDirtyTimestamp() > lastDirtyTimestamp) {
+            LOGGER.warn("bs:my instance is newly...{}|{}|{}", groupName, serviceName, instanceId);
+            return leaseInfo.replicaSnapshot();
+        } else {
+            leaseInfo.renew();
+            return null;
+        }
     }
 }

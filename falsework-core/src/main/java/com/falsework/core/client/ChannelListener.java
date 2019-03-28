@@ -1,11 +1,11 @@
-package com.falsework.core.server;
+package com.falsework.core.client;
 
 import java.util.EventListener;
 
 /**
  * 服务器生命周期监听者
  */
-public interface ServerLifecycleListener extends EventListener {
+public interface ChannelListener extends EventListener {
 
     /**
      * 启动之前

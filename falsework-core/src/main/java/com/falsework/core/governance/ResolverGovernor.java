@@ -80,12 +80,13 @@ public class ResolverGovernor implements EventListener {
     }
 
     /**
-     * 更新在此注册 listener
+     * 更新在此注册 listener,
+     * TODO 需要限制速度
      *
      * @param serviceName
      */
     public void refresh(String serviceName) {
-        LOGGER.debug("refresh for:{}", serviceName);
+        LOGGER.info("refresh for:{}", serviceName);
         List<InstanceInfo> instanceInfos = this.client.getServiceInstance(serviceName);
         if (instanceInfos.size() > 0) {
             List<EquivalentAddressGroup> groups = instanceInfos

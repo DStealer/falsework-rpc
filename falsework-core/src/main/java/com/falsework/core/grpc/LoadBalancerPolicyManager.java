@@ -1,4 +1,6 @@
 package com.falsework.core.grpc;
+
+import io.grpc.internal.GrpcUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,7 +10,7 @@ import org.slf4j.LoggerFactory;
 public enum LoadBalancerPolicyManager {
     ;
     private static final Logger LOGGER = LoggerFactory.getLogger(LoadBalancerPolicyManager.class);
-    private static String  POLICY;
+    private static String POLICY;
 
     public static void set(String policy) {
         if (POLICY == null) {
@@ -19,6 +21,6 @@ public enum LoadBalancerPolicyManager {
     }
 
     public static String get() {
-        return POLICY;
+        return POLICY != null ? POLICY : GrpcUtil.DEFAULT_LB_POLICY;
     }
 }

@@ -1,7 +1,6 @@
 package com.falsework.core.governance;
 
 import com.google.common.base.Preconditions;
-import io.grpc.Attributes;
 import io.grpc.NameResolver;
 import io.grpc.NameResolverProvider;
 
@@ -19,7 +18,7 @@ public class DiscoveryNameResolverProvider extends NameResolverProvider {
 
     @Override
     protected boolean isAvailable() {
-        return this.client.isFetchRegistry();
+        return this.client.isFetchRegistryEnable();
     }
 
     @Override

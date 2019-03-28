@@ -14,7 +14,10 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,91 +29,62 @@ import java.util.concurrent.TimeUnit;
 public class DiscoveryClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryClient.class);
     private final Props props;
-    private ScheduledExecutorService scheduler;
-    private InstanceInfo myInfo;
-    private ResolverGovernor governor;
-    private ManagedChannel discoveryChannel;
-    private DiscoveryServiceGrpc.DiscoveryServiceBlockingStub discoveryServiceStub;
-    private Map<String, String> localCacheInstanceHash;
-    private boolean registerSelf;
-    private boolean fetchRegistry;
+    private final ScheduledExecutorService scheduler;
+    private final InstanceInfo myInfo;
+    private final ResolverGovernor governor;
+    private final ManagedChannel discoveryChannel;
+    private final DiscoveryServiceGrpc.DiscoveryServiceBlockingStub discoveryServiceStub;
+    private final Map<String, String> dependenceServiceHash;
+    private final boolean registerSelfEnable;
+    private final boolean fetchRegistryEnable;
 
     public DiscoveryClient(Props props) {
         this.props = props;
-    }
-
-    public synchronized void init() {
         String address = this.props.getProperty(PropsVars.DISCOVERY_ADDRESS);
         this.discoveryChannel = NettyChannelBuilder.forTarget(address)
                 .nameResolverFactory(HttpResolverProvider.SINGLTON)
-                .directExecutor()
                 .keepAliveWithoutCalls(true)
                 .eventLoopGroup(new NioEventLoopGroup(2, new ThreadFactoryBuilder().
                         setNameFormat("discovery-event-loop-%d").setDaemon(true).build()))
                 .usePlaintext()
                 .build();
         this.discoveryServiceStub = DiscoveryServiceGrpc.newBlockingStub(this.discoveryChannel);
-
         this.governor = new ResolverGovernor(this);
-        this.scheduler = Executors.newScheduledThreadPool(2, new ThreadFactoryBuilder()
-                .setDaemon(true).setNameFormat("discovery-%d").build());
-
         String serviceName = this.props.getProperty(PropsVars.SERVER_NAME);
         String serviceGroup = this.props.getProperty(PropsVars.SERVER_GROUP);
         String serviceIp = this.props.getProperty(PropsVars.SERVER_IP);
         int servicePort = this.props.getInt(PropsVars.SERVER_PORT);
         String instanceId = String.format("%s:%d", serviceIp, servicePort);
-
         this.myInfo = InstanceInfo.newBuilder()
                 .setInstanceId(instanceId)
                 .setServiceName(serviceName)
                 .setGroupName(serviceGroup)
                 .setIpAddress(serviceIp)
                 .setPort(servicePort)
-                .setStatus(InstanceStatus.UP)
+                .setStatus(InstanceStatus.UNKNOWN)
                 .setHash("")
                 .build();
-        this.localCacheInstanceHash = new ConcurrentHashMap<>();
-        this.registerSelf = this.props.getBoolean(PropsVars.DISCOVERY_REGISTER_SELF);
-        this.fetchRegistry = this.props.getBoolean(PropsVars.DISCOVERY_FETCH_REGISTRY);
+        this.dependenceServiceHash = new ConcurrentHashMap<>();
+        this.registerSelfEnable = this.props.getBoolean(PropsVars.DISCOVERY_REGISTER_SELF);
+        this.fetchRegistryEnable = this.props.getBoolean(PropsVars.DISCOVERY_FETCH_REGISTRY);
+
+        this.scheduler = Executors.newScheduledThreadPool(2, new ThreadFactoryBuilder()
+                .setDaemon(true).setNameFormat("discovery-%d").build());
     }
 
     /**
      * 启动 并查初始化线程
      */
-    public synchronized void start() {
+    public void start() {
         LOGGER.info("discovery client start...");
-        this.register();
+        //启动心跳和定时刷新任务
         Random random = new Random();
-        if (this.registerSelf) {
-            this.scheduler.scheduleWithFixedDelay(DiscoveryClient.this::heartbeat, random.nextInt(10), 30, TimeUnit.SECONDS);
+        if (this.registerSelfEnable) {
+            this.register();
+            this.scheduler.scheduleWithFixedDelay(DiscoveryClient.this::renew, random.nextInt(10), 30, TimeUnit.SECONDS);
         }
-        if (this.fetchRegistry) {
+        if (this.fetchRegistryEnable) {
             this.scheduler.scheduleWithFixedDelay(DiscoveryClient.this::refresh, random.nextInt(10), 30, TimeUnit.SECONDS);
-        }
-    }
-
-    /**
-     * 停止
-     */
-    public synchronized void stop() {
-        LOGGER.info("discovery client stop...");
-        try {
-            this.scheduler.shutdown();
-            if (this.scheduler.isShutdown()) {
-                this.scheduler.awaitTermination(3, TimeUnit.SECONDS);
-            }
-        } catch (InterruptedException e) {
-            this.scheduler.shutdownNow();
-        }
-
-        this.unregister();
-
-        this.discoveryChannel.shutdown();
-        try {
-            this.discoveryChannel.awaitTermination(3, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            this.discoveryChannel.shutdownNow();
         }
     }
 
@@ -124,7 +98,8 @@ public class DiscoveryClient {
             LOGGER.info("register service with:\n{}", this.myInfo);
             RegisterRequest request = RegisterRequest.newBuilder()
                     .setMeta(RequestMeta.getDefaultInstance())
-                    .setInstance(this.myInfo)
+                    .setInstance(InstanceInfo.newBuilder(this.myInfo)
+                            .setStatus(InstanceStatus.UP))
                     .build();
             RegisterResponse response = this.discoveryServiceStub.register(request);
             ResponseMeta meta = response.getMeta();
@@ -135,9 +110,104 @@ public class DiscoveryClient {
                 LOGGER.warn("register service failed,answer:{}:{}", meta.getErrCode(), meta.getDetails());
             }
         } catch (StatusRuntimeException exception) {
-            LOGGER.warn("register local service failed", exception);
+            LOGGER.warn("register local service failed", exception.getCause());
         }
         return false;
+    }
+
+    /**
+     * 心跳
+     *
+     * @return
+     */
+    private boolean renew() {
+        RenewRequest request = RenewRequest.newBuilder()
+                .setMeta(RequestMeta.getDefaultInstance())
+                .setInstanceId(this.myInfo.getInstanceId())
+                .setServiceName(this.myInfo.getServiceName())
+                .setGroupName(this.myInfo.getGroupName())
+                .build();
+        try {
+            RenewResponse response = this.discoveryServiceStub.renew(request);
+            ResponseMeta meta = response.getMeta();
+            if ("NA".equals(meta.getErrCode())) {
+                LOGGER.debug("renew success,OK....");
+                return true;
+            } else if ("GA1002".equals(meta.getErrCode())) {
+                LOGGER.warn("renew failed with not register,register again....");
+                return this.register();
+            } else {
+                LOGGER.warn("renew failed,answer:{}:{}", meta.getErrCode(), meta.getDetails());
+            }
+        } catch (StatusRuntimeException exception) {
+            LOGGER.warn("renew failed", exception);
+        }
+        return false;
+    }
+
+    /**
+     * 更新
+     *
+     * @return
+     */
+    private boolean refresh() {
+        if (this.dependenceServiceHash.size() == 0) {
+            return true;
+        }
+        DeltaServiceRequest request = DeltaServiceRequest.newBuilder()
+                .setMeta(RequestMeta.getDefaultInstance())
+                .setGroupName(this.myInfo.getGroupName())
+                .putAllServiceHashInfo(this.dependenceServiceHash)
+                .build();
+        try {
+            DeltaServiceResponse response = this.discoveryServiceStub.deltaService(request);
+            ResponseMeta meta = response.getMeta();
+            if (!"NA".equals(meta.getErrCode())) {
+                LOGGER.warn("refresh failed,answer:{}:{}", meta.getErrCode(), meta.getDetails());
+                return false;
+            }
+            List<ServiceInfo> deltaServiceInfoList = response.getServiceInfosList();
+
+            for (ServiceInfo info : deltaServiceInfoList) {
+                this.governor.onChange(info.getServiceName(), info.getInstancesList());
+            }
+
+            for (ServiceInfo info : deltaServiceInfoList) {
+                this.dependenceServiceHash.put(info.getServiceName(), info.getHash());
+            }
+            return true;
+        } catch (Exception exception) {
+            LOGGER.warn("discover refresh failed", exception.getCause());
+        }
+        return false;
+    }
+
+    /**
+     * 停止
+     */
+    public void stopAll() {
+        LOGGER.info("discovery client stop...");
+        try {
+            this.scheduler.shutdown();
+            this.scheduler.awaitTermination(3, TimeUnit.SECONDS);
+
+        } catch (InterruptedException e) {
+            this.scheduler.shutdownNow();
+        }
+        if (this.registerSelfEnable) {
+            this.unregister();
+        }
+
+        try {
+            this.discoveryChannel.shutdown();
+            this.discoveryChannel.awaitTermination(3, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            this.discoveryChannel.shutdownNow();
+        }
+    }
+
+    public boolean isRegisterSelfEnable() {
+        return this.registerSelfEnable;
     }
 
     /**
@@ -163,74 +233,38 @@ public class DiscoveryClient {
                 LOGGER.warn("unregister service failed,answer:{}:{}", meta.getErrCode(), meta.getDetails());
             }
         } catch (StatusRuntimeException exception) {
-            LOGGER.warn("unregister service failed", exception);
+            LOGGER.warn("unregister service failed", exception.getCause());
         }
         return false;
     }
 
     /**
-     * 心跳
+     * 状态和其他信息改变
      *
+     * @param status
+     * @param additional
      * @return
      */
-    private boolean heartbeat() {
-        HeartbeatRequest request = HeartbeatRequest.newBuilder()
+    private boolean change(InstanceStatus status, Map<String, String> additional) {
+        StatusChangeRequest request = StatusChangeRequest.newBuilder()
                 .setMeta(RequestMeta.getDefaultInstance())
                 .setInstanceId(this.myInfo.getInstanceId())
                 .setServiceName(this.myInfo.getServiceName())
                 .setGroupName(this.myInfo.getGroupName())
+                .setStatus(status)
+                .putAllAttributes(additional)
                 .build();
         try {
-            HeartbeatResponse response = this.discoveryServiceStub.heartbeat(request);
+            StatusChangeResponse response = this.discoveryServiceStub.change(request);
             ResponseMeta meta = response.getMeta();
             if ("NA".equals(meta.getErrCode())) {
-                LOGGER.debug("heartbeat success,OK....");
+                LOGGER.info("status change success,OK....");
                 return true;
-            } else if ("GA1002".equals(meta.getErrCode())) {
-                LOGGER.warn("heartbeat failed with not register,register again....");
-                return this.register();
             } else {
-                LOGGER.warn("heartbeat failed,answer:{}:{}", meta.getErrCode(), meta.getDetails());
+                LOGGER.warn("status change,answer:{}:{}", meta.getErrCode(), meta.getDetails());
             }
         } catch (StatusRuntimeException exception) {
-            LOGGER.warn("heartbeat failed", exception);
-        }
-        return false;
-    }
-
-    /**
-     * 更新
-     *
-     * @return
-     */
-    private synchronized boolean refresh() {
-        if (this.localCacheInstanceHash.size() == 0) {
-            return true;
-        }
-        DeltaServiceRequest request = DeltaServiceRequest.newBuilder()
-                .setMeta(RequestMeta.getDefaultInstance())
-                .setGroupName(this.myInfo.getGroupName())
-                .putAllServiceHashInfo(this.localCacheInstanceHash)
-                .build();
-        try {
-            DeltaServiceResponse response = this.discoveryServiceStub.deltaService(request);
-            ResponseMeta meta = response.getMeta();
-            if (!"NA".equals(meta.getErrCode())) {
-                LOGGER.warn("refresh failed,answer:{}:{}", meta.getErrCode(), meta.getDetails());
-                return false;
-            }
-            List<ServiceInfo> deltaServiceInfoList = response.getServiceInfoListList();
-
-            for (ServiceInfo info : deltaServiceInfoList) {
-                this.governor.onChange(info.getServiceName(), new ArrayList<>(info.getInstanceMapMap().values()));
-            }
-
-            for (ServiceInfo info : deltaServiceInfoList) {
-                this.localCacheInstanceHash.put(info.getServiceName(), info.getHash());
-            }
-            return true;
-        } catch (Exception exception) {
-            LOGGER.warn("discover refresh failed", exception);
+            LOGGER.warn("status change failed", exception);
         }
         return false;
     }
@@ -255,10 +289,10 @@ public class DiscoveryClient {
                 LOGGER.warn("find service failed,answer:{}:{}", meta.getErrCode(), meta.getDetails());
                 return Collections.EMPTY_LIST;
             }
-            this.localCacheInstanceHash.put(serviceName, response.getServiceInfo().getHash());
-            return new ArrayList<>(response.getServiceInfo().getInstanceMapMap().values());
+            this.dependenceServiceHash.put(serviceName, response.getServiceInfo().getHash());
+            return response.getServiceInfo().getInstancesList();
         } catch (StatusRuntimeException exception) {
-            LOGGER.warn("fetch service instance failed", exception);
+            LOGGER.warn("fetch service instance failed", exception.getCause());
             return Collections.emptyList();
         }
     }
@@ -269,7 +303,7 @@ public class DiscoveryClient {
      * @param serviceName
      */
     public void registerDependency(String serviceName) {
-        this.localCacheInstanceHash.put(serviceName, "");
+        this.dependenceServiceHash.put(serviceName, "");
     }
 
     /**
@@ -278,18 +312,14 @@ public class DiscoveryClient {
      * @param serviceName
      */
     public void deregisterDependency(String serviceName) {
-        this.localCacheInstanceHash.remove(serviceName);
+        this.dependenceServiceHash.remove(serviceName);
     }
 
     public ResolverGovernor getGovernor() {
         return this.governor;
     }
 
-    public boolean isFetchRegistry() {
-        return this.fetchRegistry;
-    }
-
-    public boolean isRegisterSelf() {
-        return this.registerSelf;
+    public boolean isFetchRegistryEnable() {
+        return this.fetchRegistryEnable;
     }
 }

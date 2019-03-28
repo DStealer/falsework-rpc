@@ -9,10 +9,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URL;
-import java.util.Base64;
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * java props配置文件工具类
@@ -453,6 +450,16 @@ public final class Props extends Properties {
             }
         }
         return false;
+    }
+
+    /**
+     * 判断值存在
+     *
+     * @param key
+     * @return
+     */
+    public boolean existProps(String key) {
+        return Objects.nonNull(get(key));
     }
 
     /**

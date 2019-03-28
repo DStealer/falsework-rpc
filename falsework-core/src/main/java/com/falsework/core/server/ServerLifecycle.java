@@ -11,21 +11,21 @@ public interface ServerLifecycle {
      *
      * @param listener
      */
-    void addLifecycleListener(ServerLifecycleListener listener);
+    void addListener(ServerListener listener);
 
     /**
      * 查找监听器
      *
      * @return
      */
-    Set<ServerLifecycleListener> findLifecycleListeners();
+    Set<ServerListener> findListeners();
 
     /**
      * 移除监听器
      *
      * @param listener
      */
-    void removeLifecycleListener(ServerLifecycleListener listener);
+    void removeListener(ServerListener listener);
 
     /**
      * 启动

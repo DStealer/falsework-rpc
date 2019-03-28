@@ -28,7 +28,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
     private Executor executor;
     private NameResolver.Factory factory;
     private List<ClientInterceptor> interceptorList = new LinkedList<>();
-    private Set<ChannelLifecycleListener> listeners = new LinkedHashSet<>();
+    private Set<ChannelListener> listeners = new LinkedHashSet<>();
     private int messageSizeByte;
     private int metadataSizeByte;
 
@@ -96,7 +96,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
      * @return
      */
 
-    public ChannelManagerBuilder listener(ChannelLifecycleListener listener) {
+    public ChannelManagerBuilder listener(ChannelListener listener) {
         Preconditions.checkNotNull(listener, "listener invalid");
         this.listeners.add(listener);
         return this;
@@ -149,8 +149,8 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
         ManagedChannel channel = builder.build();
 
         ChannelManager manager = new ChannelManager(this.name, channel);
-        for (ChannelLifecycleListener listener : this.listeners) {
-            manager.addLifecycleListener(listener);
+        for (ChannelListener listener : this.listeners) {
+            manager.addListener(listener);
         }
         return manager;
     }

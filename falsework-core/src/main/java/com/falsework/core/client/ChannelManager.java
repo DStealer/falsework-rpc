@@ -16,29 +16,29 @@ public class ChannelManager implements ChannelLifecycle {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChannelManager.class);
     private final String name;
     private final ManagedChannel channel;
-    private final Set<ChannelLifecycleListener> lifecycleListeners;
+    private final Set<ChannelListener> listeners;
     private boolean running;
 
     ChannelManager(String name, ManagedChannel channel) {
         this.name = name;
         this.channel = channel;
         this.running = false;
-        this.lifecycleListeners = new LinkedHashSet<>();
+        this.listeners = new LinkedHashSet<>();
     }
 
     @Override
-    public void addLifecycleListener(ChannelLifecycleListener listener) {
-        this.lifecycleListeners.add(listener);
+    public void addListener(ChannelListener listener) {
+        this.listeners.add(listener);
     }
 
     @Override
-    public Set<ChannelLifecycleListener> findLifecycleListeners() {
-        return Collections.unmodifiableSet(this.lifecycleListeners);
+    public Set<ChannelListener> findListeners() {
+        return Collections.unmodifiableSet(this.listeners);
     }
 
     @Override
-    public void removeLifecycleListener(ChannelLifecycleListener listener) {
-        this.lifecycleListeners.remove(listener);
+    public void removeListener(ChannelListener listener) {
+        this.listeners.remove(listener);
     }
 
     @Override
@@ -51,11 +51,11 @@ public class ChannelManager implements ChannelLifecycle {
         } else {
             this.running = true;
         }
-        for (ChannelLifecycleListener listener : this.lifecycleListeners) {
+        for (ChannelListener listener : this.listeners) {
             listener.beforeStart();
         }
         //do nothing
-        for (ChannelLifecycleListener listener : this.lifecycleListeners) {
+        for (ChannelListener listener : this.listeners) {
             listener.afterStart();
         }
     }
@@ -68,12 +68,12 @@ public class ChannelManager implements ChannelLifecycle {
         } else {
             this.running = false;
         }
-        for (ChannelLifecycleListener listener : this.lifecycleListeners) {
+        for (ChannelListener listener : this.listeners) {
             listener.beforeStop();
         }
         this.channel.shutdown();
 
-        for (ChannelLifecycleListener listener : this.lifecycleListeners) {
+        for (ChannelListener listener : this.listeners) {
             listener.afterStop();
         }
     }

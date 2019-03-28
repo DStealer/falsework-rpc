@@ -30,25 +30,25 @@ message InstanceInfo {
 message ServiceInfo {
     string serviceName = 1;
     string groupName = 2;
-    map<string, InstanceInfo> instanceMap = 3;
+    repeated InstanceInfo instances = 3;
     string hash = 4;
 }
 
 message GroupInfo {
     string groupName = 1;
-    map<string, ServiceInfo> serviceMap = 2;
+    repeated ServiceInfo services = 2;
     string hash = 3;
 }
 
 //心跳保持
-message HeartbeatRequest {
+message RenewRequest {
     falsework.common.RequestMeta meta = 1;
     string instanceId = 2;
     string serviceName = 3;
     string groupName = 4;
 }
 
-message HeartbeatResponse {
+message RenewResponse {
     falsework.common.ResponseMeta meta = 1;
 }
 
@@ -81,7 +81,7 @@ message StatusChangeRequest {
     string serviceName = 3;
     string groupName = 4;
     InstanceStatus status = 5;
-    string reason = 6;
+    map<string, string> attributes = 6;
 }
 
 message StatusChangeResponse {
@@ -95,7 +95,7 @@ message GroupNameRequest {
 
 message GroupNameResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated string groupNameList = 2;
+    repeated string groupNames = 2;
 }
 
 //服务查询
@@ -106,7 +106,7 @@ message ServiceNameRequest {
 
 message ServiceNameResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated string serviceNameList = 2;
+    repeated string serviceNames = 2;
 }
 
 //服务查询
@@ -132,14 +132,21 @@ message GroupResponse {
     GroupInfo groupInfo = 2;
 }
 
+enum Action {
+    ADDED = 0;
+    MODIFY = 1;
+    DELETED = 2;
+}
+
 //组变化查询
 message DeltaGroupRequest {
     falsework.common.RequestMeta meta = 1;
-    map<string, string> groupHashInfo = 3;
+    map<string, string> groupHashInfo = 2; // 组名,指纹
 }
+
 message DeltaGroupResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated GroupInfo groupInfoList = 2;
+    repeated GroupInfo groupInfos = 2;
 }
 
 //组所属服务变化查询
@@ -150,7 +157,7 @@ message DeltaServiceRequest {
 }
 message DeltaServiceResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated ServiceInfo serviceInfoList = 2;
+    repeated ServiceInfo serviceInfos = 2;
 }
 
 //服务所属实例变化查询
@@ -162,11 +169,11 @@ message DeltaInstanceRequest {
 }
 message DeltaInstanceResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated InstanceInfo instanceInfoList = 2;
+    repeated InstanceInfo instanceInfos = 2;
 }
 
 service DiscoveryService {
-    rpc heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {
+    rpc renew (RenewRequest) returns (RenewResponse) {
     }
     rpc register (RegisterRequest) returns (RegisterResponse) {
     }

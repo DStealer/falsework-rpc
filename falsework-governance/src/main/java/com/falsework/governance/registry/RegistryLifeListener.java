@@ -1,13 +1,13 @@
 package com.falsework.governance.registry;
 
-import com.falsework.core.server.ServerLifecycleListener;
+import com.falsework.core.server.ServerListener;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Singleton
-public class RegistryLifeListener implements ServerLifecycleListener {
+public class RegistryLifeListener implements ServerListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(RegistryLifeListener.class);
     private final InstanceRegistry registry;
 

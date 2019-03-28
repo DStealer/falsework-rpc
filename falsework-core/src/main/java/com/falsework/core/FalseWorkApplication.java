@@ -1,7 +1,6 @@
 package com.falsework.core;
 
 import com.falsework.core.server.LifecycleServer;
-import com.falsework.core.server.ServerRegister;
 import com.google.inject.Injector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,19 +12,16 @@ public class FalseWorkApplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(FalseWorkApplication.class);
     private final LifecycleServer server;
     private final Injector injector;
-    private final ServerRegister register;
 
-    FalseWorkApplication(LifecycleServer server, Injector injector, ServerRegister register) {
+    FalseWorkApplication(LifecycleServer server, Injector injector) {
         this.server = server;
         this.injector = injector;
-        this.register = register;
     }
 
     public FalseWorkApplication run() throws Exception {
         LOGGER.info("************************FalseWorkApplication starting....*************************");
         injector.getAllBindings().forEach((key, binding) -> LOGGER.info("binging:{}",binding));
         this.server.start();
-        this.register.register();
         LOGGER.info("************************FalseWorkApplication started....***************************");
         LOGGER.info("**********************************************************************************");
         return this;
@@ -34,7 +30,6 @@ public class FalseWorkApplication {
     public FalseWorkApplication stop() throws Exception {
         LOGGER.info("**********************************************************************************");
         LOGGER.info("FalseWorkApplication stopping....");
-        this.register.unregister();
         this.server.stop();
         LOGGER.info("FalseWorkApplication stopped....");
         LOGGER.info("**********************************************************************************");

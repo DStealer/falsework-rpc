@@ -3,7 +3,7 @@ package com.falsework.governance.service;
 import com.falsework.core.composite.ResponseMetaException;
 import com.falsework.core.generated.governance.*;
 import com.falsework.governance.composite.ErrorCode;
-import com.falsework.governance.model.LeaseInfo;
+import com.falsework.governance.model.InstanceLeaseInfo;
 import com.falsework.governance.registry.InstanceRegistry;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
@@ -12,8 +12,6 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * 服务查询
@@ -28,13 +26,12 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         this.registry = registry;
     }
 
-
     @Override
-    public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
-        LOGGER.info("register from:\n{}", request.getInstance());
-        RegisterResponse.Builder builder = RegisterResponse.newBuilder();
+    public void renew(RenewRequest request, StreamObserver<RenewResponse> responseObserver) {
+        LOGGER.info("renew from:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
+        RenewResponse.Builder builder = RenewResponse.newBuilder();
         try {
-            this.registry.register(request.getInstance(), LeaseInfo.DEFAULT_DURATION_MS);
+            this.registry.renew(request.getGroupName(), request.getServiceName(), request.getInstanceId());
             builder.setMeta(ErrorCode.NA.toResponseMeta());
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
@@ -49,11 +46,11 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
     }
 
     @Override
-    public void heartbeat(HeartbeatRequest request, StreamObserver<HeartbeatResponse> responseObserver) {
-        LOGGER.info("heart beat from:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
-        HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder();
+    public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
+        LOGGER.info("register from:\n{}", request.getInstance());
+        RegisterResponse.Builder builder = RegisterResponse.newBuilder();
         try {
-            this.registry.heartbeat(request.getGroupName(), request.getServiceName(), request.getInstanceId());
+            this.registry.register(request.getInstance(), InstanceLeaseInfo.DEFAULT_DURATION_MS);
             builder.setMeta(ErrorCode.NA.toResponseMeta());
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
@@ -91,7 +88,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("change from:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
         StatusChangeResponse.Builder builder = StatusChangeResponse.newBuilder();
         try {
-            registry.change(request.getGroupName(), request.getServiceName(), request.getInstanceId(), request.getStatus());
+            registry.change(request.getGroupName(), request.getServiceName(), request.getInstanceId(),
+                    request.getStatus(), request.getAttributesMap());
             builder.setMeta(ErrorCode.NA.toResponseMeta());
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
@@ -112,7 +110,7 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         try {
             Collection<String> names = registry.groupName();
             builder.setMeta(ErrorCode.NA.toResponseMeta())
-                    .addAllGroupNameList(names);
+                    .addAllGroupNames(names);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());
@@ -132,7 +130,7 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         try {
             Collection<String> names = registry.serviceName(request.getGroupName());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
-                    .addAllServiceNameList(names);
+                    .addAllServiceNames(names);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());
@@ -150,13 +148,9 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find service for:{}|{}", request.getGroupName(), request.getServiceName());
         ServiceResponse.Builder builder = ServiceResponse.newBuilder();
         try {
-            Optional<ServiceInfo> service = registry.service(request.getGroupName(), request.getServiceName());
-            if (service.isPresent()) {
-                builder.setMeta(ErrorCode.NA.toResponseMeta())
-                        .setServiceInfo(service.get());
-            } else {
-                throw ErrorCode.NOT_FOUND.asException("service not found");
-            }
+            ServiceInfo service = registry.service(request.getGroupName(), request.getServiceName());
+            builder.setMeta(ErrorCode.NA.toResponseMeta())
+                    .setServiceInfo(service);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());
@@ -174,33 +168,9 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find group name for:{}", request.getGroupName());
         GroupResponse.Builder builder = GroupResponse.newBuilder();
         try {
-            Optional<GroupInfo> groupInfo = registry.group(request.getGroupName());
-            if (groupInfo.isPresent()) {
-                builder.setMeta(ErrorCode.NA.toResponseMeta())
-                        .setGroupInfo(groupInfo.get());
-            } else {
-                throw ErrorCode.NOT_FOUND.asException("group not found");
-            }
-        } catch (ResponseMetaException e) {
-            LOGGER.error(e.getErrorCode(), e);
-            builder.setMeta(e.toResponseMeta());
-        } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
-            builder.setMeta(ErrorCode.INTERNAL.toResponseMeta());
-        } finally {
-            responseObserver.onNext(builder.build());
-            responseObserver.onCompleted();
-        }
-    }
-
-    @Override
-    public void deltaService(DeltaServiceRequest request, StreamObserver<DeltaServiceResponse> responseObserver) {
-        LOGGER.info("find delta service for:{}/{}", request.getGroupName(), request.getServiceHashInfoMap().keySet());
-        DeltaServiceResponse.Builder builder = DeltaServiceResponse.newBuilder();
-        try {
-            List<ServiceInfo> deltaServices = this.registry.deltaService(request.getGroupName(), request.getServiceHashInfoMap());
+            GroupInfo groupInfo = registry.group(request.getGroupName());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
-                    .addAllServiceInfoList(deltaServices);
+                    .setGroupInfo(groupInfo);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());
@@ -218,9 +188,29 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find delta group for:{}", request.getGroupHashInfoMap().keySet());
         DeltaGroupResponse.Builder builder = DeltaGroupResponse.newBuilder();
         try {
-            List<GroupInfo> deltaGroups = this.registry.deltaGroup(request.getGroupHashInfoMap());
+            Collection<GroupInfo> deltaGroups = this.registry.deltaGroup(request.getGroupHashInfoMap());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
-                    .addAllGroupInfoList(deltaGroups);
+                    .addAllGroupInfos(deltaGroups);
+        } catch (ResponseMetaException e) {
+            LOGGER.error(e.getErrorCode(), e);
+            builder.setMeta(e.toResponseMeta());
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e);
+            builder.setMeta(ErrorCode.INTERNAL.toResponseMeta());
+        } finally {
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void deltaService(DeltaServiceRequest request, StreamObserver<DeltaServiceResponse> responseObserver) {
+        LOGGER.info("find delta service for:{}/{}", request.getGroupName(), request.getServiceHashInfoMap().keySet());
+        DeltaServiceResponse.Builder builder = DeltaServiceResponse.newBuilder();
+        try {
+            Collection<ServiceInfo> deltaServices = this.registry.deltaService(request.getGroupName(), request.getServiceHashInfoMap());
+            builder.setMeta(ErrorCode.NA.toResponseMeta())
+                    .addAllServiceInfos(deltaServices);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());
@@ -239,10 +229,10 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
                 request.getInstanceHashInfoMap().keySet());
         DeltaInstanceResponse.Builder builder = DeltaInstanceResponse.newBuilder();
         try {
-            List<InstanceInfo> deltaInstance = this.registry.deltaInstance(request.getGroupName(), request.getServiceName(),
+            Collection<InstanceInfo> deltaInstance = this.registry.deltaInstance(request.getGroupName(), request.getServiceName(),
                     request.getInstanceHashInfoMap());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
-                    .addAllInstanceInfoList(deltaInstance);
+                    .addAllInstanceInfos(deltaInstance);
         } catch (ResponseMetaException e) {
             LOGGER.error(e.getErrorCode(), e);
             builder.setMeta(e.toResponseMeta());
