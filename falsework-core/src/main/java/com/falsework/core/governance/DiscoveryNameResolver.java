@@ -26,7 +26,7 @@ public class DiscoveryNameResolver extends NameResolver {
     @Override
     public synchronized void start(Listener listener) {
         LOGGER.info("start name resolver for:{}", this.uri.toString());
-        this.resolverGovernor.register(uri.getAuthority(), listener);
+        this.resolverGovernor.register(uri.getAuthority(), new Resolver(this.helper,listener));
         this.resolverGovernor.refresh(uri.getAuthority());
     }
 

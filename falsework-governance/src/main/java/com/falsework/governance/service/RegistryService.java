@@ -14,17 +14,20 @@ import java.util.Collection;
 public class RegistryService extends RegistryServiceGrpc.RegistryServiceImplBase {
     private static final Logger LOGGER = LoggerFactory.getLogger(RegistryService.class);
     private final InstanceRegistry registry;
+    private final SecureService secureService;
 
     @Inject
-    public RegistryService(InstanceRegistry registry) {
+    public RegistryService(InstanceRegistry registry, SecureService secureService) {
         this.registry = registry;
+        this.secureService = secureService;
     }
 
     @Override
-    public void registry(RegistryRequest request, StreamObserver<RegistryResponse> responseObserver) {
+    public void fetchRegistry(RegistryRequest request, StreamObserver<RegistryResponse> responseObserver) {
         RegistryResponse.Builder builder = RegistryResponse.newBuilder();
         try {
-            Collection<RegistryGroupInfo> groupInfos = this.registry.replicaRegistry();
+            secureService.replicaTokenCheck(request.getMeta());
+            Collection<RegistryGroupInfo> groupInfos = this.registry.fetchRegistry();
             builder.setMeta(ErrorCode.NA.toResponseMeta())
                     .addAllGroupInfos(groupInfos);
         } catch (ResponseMetaException e) {
@@ -44,6 +47,7 @@ public class RegistryService extends RegistryServiceGrpc.RegistryServiceImplBase
         LOGGER.info("replica register:\n{}", request.getLease());
         RegisterResponse.Builder builder = RegisterResponse.newBuilder();
         try {
+            secureService.replicaTokenCheck(request.getMeta());
             this.registry.replicaRegister(request.getLease());
             builder.setMeta(ErrorCode.NA.toResponseMeta());
         } catch (ResponseMetaException e) {
@@ -63,6 +67,7 @@ public class RegistryService extends RegistryServiceGrpc.RegistryServiceImplBase
         LOGGER.info("replica cancel:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
         CancelResponse.Builder builder = CancelResponse.newBuilder();
         try {
+            secureService.replicaTokenCheck(request.getMeta());
             this.registry.replicaCancel(request.getGroupName(), request.getServiceName(), request.getInstanceId());
             builder.setMeta(ErrorCode.NA.toResponseMeta());
         } catch (ResponseMetaException e) {
@@ -82,6 +87,7 @@ public class RegistryService extends RegistryServiceGrpc.RegistryServiceImplBase
         LOGGER.info("replica renew :{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
         RenewResponse.Builder builder = RenewResponse.newBuilder();
         try {
+            secureService.replicaTokenCheck(request.getMeta());
             RegistryLeaseInfo newlyLease = registry.replicaRenew(request.getGroupName(), request.getServiceName(), request.getInstanceId()
                     , request.getLastDirtyTimestamp());
             if (newlyLease == null) {
@@ -107,6 +113,7 @@ public class RegistryService extends RegistryServiceGrpc.RegistryServiceImplBase
         LOGGER.info("replica change:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
         ChangeResponse.Builder builder = ChangeResponse.newBuilder();
         try {
+            secureService.replicaTokenCheck(request.getMeta());
             this.registry.replicaChange(request.getGroupName(), request.getServiceName(), request.getInstanceId(),
                     request.getStatus(), request.getAttributesMap(), request.getLastDirtyTimestamp());
             builder.setMeta(ErrorCode.NA.toResponseMeta());

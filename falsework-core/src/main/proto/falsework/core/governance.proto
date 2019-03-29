@@ -16,6 +16,12 @@ enum InstanceStatus {
     OUT_OF_SERVICE = 4; // Intentionally shutdown for traffic
 }
 
+enum Action {
+    ADDED = 0;
+    MODIFY = 1;
+    DELETED = 2;
+}
+
 message InstanceInfo {
     string instanceId = 1;
     string serviceName = 2;
@@ -75,7 +81,7 @@ message CancelResponse {
 }
 
 //状态更改
-message StatusChangeRequest {
+message ChangeRequest {
     falsework.common.RequestMeta meta = 1;
     string instanceId = 2;
     string serviceName = 3;
@@ -84,7 +90,7 @@ message StatusChangeRequest {
     map<string, string> attributes = 6;
 }
 
-message StatusChangeResponse {
+message ChangeResponse {
     falsework.common.ResponseMeta meta = 1;
 }
 
@@ -132,44 +138,54 @@ message GroupResponse {
     GroupInfo groupInfo = 2;
 }
 
-enum Action {
-    ADDED = 0;
-    MODIFY = 1;
-    DELETED = 2;
-}
-
 //组变化查询
-message DeltaGroupRequest {
+message DeltaGroupInfo {
+    GroupInfo groupInfo = 1;
+    Action action = 2;
+}
+
+message GroupDeltaRequest {
     falsework.common.RequestMeta meta = 1;
-    map<string, string> groupHashInfo = 2; // 组名,指纹
+    map<string, string> hashInfos = 2; // 组名,指纹
 }
 
-message DeltaGroupResponse {
+message GroupDeltaResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated GroupInfo groupInfos = 2;
+    repeated DeltaGroupInfo groupInfos = 2;
 }
 
-//组所属服务变化查询
-message DeltaServiceRequest {
+//服务变化查询
+
+message DeltaServiceInfo {
+    ServiceInfo serviceInfo = 1;
+    Action action = 2;
+}
+
+message ServiceDeltaRequest {
     falsework.common.RequestMeta meta = 1;
     string groupName = 2;
-    map<string, string> serviceHashInfo = 3;
+    map<string, string> hashInfos = 3;
 }
-message DeltaServiceResponse {
+message ServiceDeltaResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated ServiceInfo serviceInfos = 2;
+    repeated DeltaServiceInfo serviceInfos = 2;
 }
 
 //服务所属实例变化查询
-message DeltaInstanceRequest {
+
+message DeltaInstanceInfo {
+    InstanceInfo instanceInfo = 1;
+    Action action = 2;
+}
+message InstanceDeltaRequest {
     falsework.common.RequestMeta meta = 1;
     string groupName = 2;
     string serviceName = 3;
-    map<string, string> instanceHashInfo = 4;
+    map<string, string> hashInfos = 4;
 }
-message DeltaInstanceResponse {
+message InstanceDeltaResponse {
     falsework.common.ResponseMeta meta = 1;
-    repeated InstanceInfo instanceInfos = 2;
+    repeated DeltaInstanceInfo instanceInfos = 2;
 }
 
 service DiscoveryService {
@@ -179,7 +195,7 @@ service DiscoveryService {
     }
     rpc cancel (CancelRequest) returns (CancelResponse) {
     }
-    rpc change (StatusChangeRequest) returns (StatusChangeResponse) {
+    rpc change (ChangeRequest) returns (ChangeResponse) {
     }
     rpc groupName (GroupNameRequest) returns (GroupNameResponse) {
     }
@@ -189,10 +205,10 @@ service DiscoveryService {
     }
     rpc group (GroupRequest) returns (GroupResponse) {
     }
-    rpc deltaGroup (DeltaGroupRequest) returns (DeltaGroupResponse) {
+    rpc groupDelta (GroupDeltaRequest) returns (GroupDeltaResponse) {
     }
-    rpc deltaService (DeltaServiceRequest) returns (DeltaServiceResponse) {
+    rpc serviceDelta (ServiceDeltaRequest) returns (ServiceDeltaResponse) {
     }
-    rpc deltaInstance (DeltaInstanceRequest) returns (DeltaInstanceResponse) {
+    rpc instanceDelta (InstanceDeltaRequest) returns (InstanceDeltaResponse) {
     }
 }

@@ -16,7 +16,7 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
     private final int port;
     private final Map<String, String> attributes;
     private volatile InstanceStatus status;
-    private volatile String hash;
+    private volatile long lastDirtyTimestamp;
 
     public InnerInstanceInfo(InstanceInfo instanceInfo) {
         this.instanceId = instanceInfo.getInstanceId();
@@ -26,7 +26,8 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
         this.port = instanceInfo.getPort();
         this.status = instanceInfo.getStatus();
         this.attributes = new ConcurrentHashMap<>(instanceInfo.getAttributesMap());
-        this.hash = instanceInfo.getHash();
+        //hash值由 lastDirtyTimestamp 维护
+        this.lastDirtyTimestamp = System.currentTimeMillis();
     }
 
     public InnerInstanceInfo(RegistryInstanceInfo instanceInfo) {
@@ -37,7 +38,7 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
         this.port = instanceInfo.getPort();
         this.status = instanceInfo.getStatus();
         this.attributes = new ConcurrentHashMap<>(instanceInfo.getAttributesMap());
-        this.hash = instanceInfo.getHash();
+        this.lastDirtyTimestamp = instanceInfo.getLastDirtyTimestamp();
     }
 
     public String getInstanceId() {
@@ -73,8 +74,13 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
         return attributes;
     }
 
-    public String getHash() {
-        return hash;
+    public InnerInstanceInfo markDirty() {
+        this.lastDirtyTimestamp = System.currentTimeMillis();
+        return this;
+    }
+
+    public long getLastDirtyTimestamp() {
+        return lastDirtyTimestamp;
     }
 
     public InstanceInfo snapshot() {
@@ -86,13 +92,12 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
                 .setPort(this.port)
                 .setStatus(this.status)
                 .putAllAttributes(this.attributes)
-                .setHash(this.reHash())
+                .setHash(this.getHash())
                 .build();
     }
 
-    public String reHash() {
-        this.hash = String.format("%s|%d", this.instanceId, this.status.getNumber());
-        return this.hash;
+    public String getHash() {
+        return String.format("%d", this.lastDirtyTimestamp);
     }
 
     public RegistryInstanceInfo replicaSnapshot() {
@@ -104,7 +109,7 @@ public class InnerInstanceInfo implements Comparable<InnerInstanceInfo> {
                 .setPort(this.port)
                 .setStatus(this.status)
                 .putAllAttributes(this.attributes)
-                .setHash(this.reHash())
+                .setLastDirtyTimestamp(this.lastDirtyTimestamp)
                 .build();
     }
 

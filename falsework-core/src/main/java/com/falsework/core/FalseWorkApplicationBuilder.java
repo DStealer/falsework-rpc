@@ -11,11 +11,13 @@ import com.falsework.core.config.PropsVars;
 import com.falsework.core.governance.DiscoveryClient;
 import com.falsework.core.governance.DiscoveryLifeListener;
 import com.falsework.core.governance.DiscoveryNameResolverProvider;
-import com.falsework.core.grpc.CompositeResolverFactoryManager;
+import com.falsework.core.grpc.ChannelConfigurer;
+import com.falsework.core.grpc.ChannelConfigurerManager;
 import com.falsework.core.grpc.HttpResolverProvider;
-import com.falsework.core.grpc.LoadBalancerPolicyManager;
-import com.falsework.core.grpc.SharedExecutorManager;
-import com.falsework.core.server.*;
+import com.falsework.core.server.FallbackHandlerRegistry;
+import com.falsework.core.server.LifecycleServer;
+import com.falsework.core.server.ServerListener;
+import com.falsework.core.server.TimedInterceptor;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -38,6 +40,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * 应用构建器
@@ -104,22 +107,23 @@ public class FalseWorkApplicationBuilder implements Builder<FalseWorkApplication
     @Override
     public FalseWorkApplication build() {
         Props props = PropsManager.initConfig(this.propsFileName);
-        //使用负载均衡策略
-        LoadBalancerPolicyManager.set("round_robin");
+
+        ChannelConfigurer configurer = ChannelConfigurerManager.getConfigurer();
+        configurer.setLoadBalancerPolicy("round_robin");
 
         int threadChannelNumber = props.getInt(PropsVars.CHANNEL_THREAD_POOL_SIZE, NettyRuntime.availableProcessors() * 2);
         //使用共享线程池
-        SharedExecutorManager.setShared(MoreExecuters.newStretchThreadPool(threadChannelNumber, new ThreadFactoryBuilder()
-                .setNameFormat("channel-executor-%d").build()));
+        Executor channelExecutor = MoreExecuters.newStretchThreadPool(threadChannelNumber, new ThreadFactoryBuilder()
+                .setNameFormat("channel-executor-%d").build());
+        configurer.setDefaultChannelExecutor(channelExecutor);
         LOGGER.info("channel thread pool size:{}", threadChannelNumber);
-        //命名解析
-        CompositeResolverFactoryManager.addFactory(HttpResolverProvider.SINGLTON);
 
+        configurer.addResolverFactory(HttpResolverProvider.SINGLTON);
         boolean discovery = props.existSubProps(PropsVars.DISCOVERY_PREFIX);
         if (discovery) {
             DiscoveryClient client = new DiscoveryClient(props);
             if (client.isFetchRegistryEnable()) {
-                CompositeResolverFactoryManager.addFactory(new DiscoveryNameResolverProvider(client));
+                configurer.addResolverFactory(new DiscoveryNameResolverProvider(client));
             }
             this.listeners.add(new DiscoveryLifeListener(client));
         }

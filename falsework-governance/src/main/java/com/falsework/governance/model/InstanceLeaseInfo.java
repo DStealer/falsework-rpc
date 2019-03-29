@@ -12,17 +12,14 @@ public class InstanceLeaseInfo implements Comparable<InstanceLeaseInfo> {
     private final long registrationTimestamp; //lease 注册时间
     private volatile long lastUpdateTimestamp; //lease 续约时间
     private volatile long evictionTimestamp; //lease 失效时间
-    private volatile long lastDirtyTimestamp; //lease 更新时间
-    private volatile String hash;//hash 值
+
 
     public InstanceLeaseInfo(InnerInstanceInfo instanceInfo, long durationMs) {
         this.instanceInfo = instanceInfo;
         this.duration = durationMs;
         this.registrationTimestamp = System.currentTimeMillis();
         this.lastUpdateTimestamp = this.registrationTimestamp;
-        this.lastDirtyTimestamp = this.registrationTimestamp;
         this.evictionTimestamp = 0L;
-        this.hash = "";
     }
 
     public InstanceLeaseInfo(RegistryLeaseInfo info) {
@@ -31,8 +28,6 @@ public class InstanceLeaseInfo implements Comparable<InstanceLeaseInfo> {
         this.registrationTimestamp = info.getRegistrationTimestamp();
         this.lastUpdateTimestamp = info.getLastUpdateTimestamp();
         this.evictionTimestamp = info.getEvictionTimestamp();
-        this.lastDirtyTimestamp = info.getLastDirtyTimestamp();
-        this.hash = info.getHash();
     }
 
     public void renew() {
@@ -62,21 +57,10 @@ public class InstanceLeaseInfo implements Comparable<InstanceLeaseInfo> {
         return lastUpdateTimestamp;
     }
 
-    public long getLastDirtyTimestamp() {
-        return lastDirtyTimestamp;
-    }
-
-    public void setLastDirtyTimestamp(long lastDirtyTimestamp) {
-        this.lastDirtyTimestamp = lastDirtyTimestamp;
-    }
-
     public long getRegistrationTimestamp() {
         return registrationTimestamp;
     }
 
-    public String getHash() {
-        return hash;
-    }
 
     public InstanceInfo snapshot() {
         return this.instanceInfo.snapshot();
@@ -89,14 +73,7 @@ public class InstanceLeaseInfo implements Comparable<InstanceLeaseInfo> {
                 .setRegistrationTimestamp(this.registrationTimestamp)
                 .setLastUpdateTimestamp(this.lastUpdateTimestamp)
                 .setEvictionTimestamp(this.evictionTimestamp)
-                .setLastDirtyTimestamp(this.lastDirtyTimestamp)
-                .setHash(this.reHash())
                 .build();
-    }
-
-    public String reHash() {
-        this.hash = String.format("%s|%d", this.instanceInfo.getInstanceId(), this.lastDirtyTimestamp);
-        return this.hash;
     }
 
     @Override

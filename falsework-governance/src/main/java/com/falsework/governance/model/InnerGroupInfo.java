@@ -3,21 +3,20 @@ package com.falsework.governance.model;
 import com.falsework.core.generated.governance.GroupInfo;
 import com.falsework.governance.generated.RegistryGroupInfo;
 import com.falsework.governance.generated.RegistryServiceInfo;
-import com.google.common.hash.Hashing;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class InnerGroupInfo implements Comparable<InnerGroupInfo> {
     private final String groupName;
     private final ConcurrentHashMap<String, InnerServiceInfo> serviceMap;
-    private volatile String hash;
+    private volatile long lastDirtyTimestamp;
+
 
     public InnerGroupInfo(String groupName) {
         this.groupName = groupName;
         this.serviceMap = new ConcurrentHashMap<>();
-        this.hash = "";
+        this.lastDirtyTimestamp = System.currentTimeMillis();
     }
 
     public InnerGroupInfo(RegistryGroupInfo groupInfo) {
@@ -26,7 +25,7 @@ public class InnerGroupInfo implements Comparable<InnerGroupInfo> {
         for (RegistryServiceInfo info : groupInfo.getServicesList()) {
             this.serviceMap.put(info.getServiceName(), new InnerServiceInfo(info));
         }
-        this.hash = groupInfo.getHash();
+        this.lastDirtyTimestamp = groupInfo.getLastDirtyTimestamp();
     }
 
     public String getGroupName() {
@@ -37,37 +36,30 @@ public class InnerGroupInfo implements Comparable<InnerGroupInfo> {
         return serviceMap;
     }
 
-    public String getHash() {
-        return hash;
-    }
-
     public GroupInfo snapshot() {
         GroupInfo.Builder builder = GroupInfo.newBuilder()
                 .setGroupName(this.groupName)
-                .setHash(this.reHash());
+                .setHash(this.getHash());
         this.serviceMap.values().forEach(info -> builder.addServices(info.snapshot()));
         return builder.build();
     }
 
-    @SuppressWarnings("all")
-    public String reHash() {
-        this.hash = Hashing.goodFastHash(128)
-                .hashUnencodedChars(this.serviceMap.values().stream()
-                        .sorted()
-                        .map(InnerServiceInfo::reHash)
-                        .collect(Collectors.joining()))
-                .toString();
-        return this.hash;
+    public String getHash() {
+        return String.format("%d", this.lastDirtyTimestamp);
     }
 
     public RegistryGroupInfo replicaSnapshot() {
         RegistryGroupInfo.Builder builder = RegistryGroupInfo.newBuilder()
                 .setGroupName(this.groupName)
-                .setHash(this.reHash());
+                .setLastDirtyTimestamp(this.lastDirtyTimestamp);
         this.serviceMap.values().forEach(info -> builder.addServices(info.replicaSnapshot()));
         return builder.build();
     }
 
+    public InnerGroupInfo markDirty() {
+        this.lastDirtyTimestamp = System.currentTimeMillis();
+        return this;
+    }
 
     @Override
     public int compareTo(@Nonnull InnerGroupInfo o) {

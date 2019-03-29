@@ -8,17 +8,31 @@ option java_multiple_files = true;
 option java_package = "com.falsework.governance.generated";
 option java_outer_classname = "GovernanceProto";
 
-enum Action {
-    ADDED = 0; //添加
-    MODIFIED = 1; //修改
-    DELETED = 2; //删除
+enum ReplicaAction {
+    Cancel = 0;
+    Renew = 1;
+    Register = 2;
+    Change = 3;
 }
 
-enum ReplicateAction {
-    Cancel = 0;
-    Heartbeat = 1;
-    Register = 2;
-    StatusUpdate = 3;
+message InstanceIdentity {
+    string instanceId = 1;
+    string serviceName = 2;
+    string groupName = 3;
+}
+
+message BatchTask {
+    ReplicaAction action = 1;
+    oneof info {
+        InstanceIdentity identity = 2;
+        RegistryInstanceInfo instance = 3;
+        RegistryLeaseInfo lease = 4;
+    }
+    int64 lastDirtyTimestamp = 5;
+}
+message BatchTaskReply {
+    int32 result = 1;
+    RegistryLeaseInfo lease = 2;
 }
 
 message RegistryInstanceInfo {
@@ -29,7 +43,7 @@ message RegistryInstanceInfo {
     int32 port = 5;
     falsework.governance.InstanceStatus status = 6;
     map<string, string> attributes = 7;
-    string hash = 8;
+    int64 lastDirtyTimestamp = 8;
 }
 
 message RegistryLeaseInfo {
@@ -38,20 +52,18 @@ message RegistryLeaseInfo {
     int64 registrationTimestamp = 3;
     int64 lastUpdateTimestamp = 4;
     int64 evictionTimestamp = 5;
-    int64 lastDirtyTimestamp = 6;
-    string hash = 7;
 }
 
 message RegistryServiceInfo {
     string serviceName = 1;
     string groupName = 2;
     repeated RegistryLeaseInfo leases = 3;
-    string hash = 4;
+    int64 lastDirtyTimestamp = 4;
 }
 message RegistryGroupInfo {
     string groupName = 1;
     repeated RegistryServiceInfo services = 2;
-    string hash = 3;
+    int64 lastDirtyTimestamp = 3;
 }
 
 //查询所有注册节点信息
@@ -106,8 +118,18 @@ message ChangeRequest {
 message ChangeResponse {
     falsework.common.ResponseMeta meta = 1;
 }
+
+message BatchTaskRequest {
+    falsework.common.RequestMeta meta = 1;
+    repeated BatchTask batchTasks = 2;
+
+}
+message BatchTaskResponse {
+    falsework.common.ResponseMeta meta = 1;
+    repeated BatchTaskReply replays = 2;
+}
 service RegistryService {
-    rpc registry (RegistryRequest) returns (RegistryResponse) {
+    rpc fetchRegistry (RegistryRequest) returns (RegistryResponse) {
     }
     rpc register (RegisterRequest) returns (RegisterResponse) {
     }
@@ -116,5 +138,7 @@ service RegistryService {
     rpc renew (RenewRequest) returns (RenewResponse) {
     }
     rpc change (ChangeRequest) returns (ChangeResponse) {
+    }
+    rpc batch (BatchTaskRequest) returns (BatchTaskResponse) {
     }
 }

@@ -13,7 +13,7 @@ public class RegistryServiceTest extends BaseServiceTest {
         RegistryServiceGrpc.RegistryServiceBlockingStub stub = this.channelManager.newStub(RegistryServiceGrpc::newBlockingStub);
 
         RegistryRequest request = RegistryRequest.newBuilder().setMeta(RequestMeta.getDefaultInstance()).build();
-        RegistryResponse response = stub.registry(request);
+        RegistryResponse response = stub.fetchRegistry(request);
         System.out.println(response);
 
     }

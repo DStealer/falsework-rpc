@@ -2,7 +2,7 @@ package com.falsework.census.service;
 
 import com.falsework.census.generated.grpc.*;
 import com.falsework.core.client.ChannelManager;
-import com.falsework.core.client.ChannelManagerBuilder;
+import com.falsework.core.client.ChannelBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NettyChannelBuilder;
 import org.junit.Test;
@@ -22,7 +22,7 @@ public class MetricQueryServiceTest {
 
     @Test
     public void tt02() throws Exception {
-        ChannelManager channelManager = ChannelManagerBuilder.newBuilder().name("http://106.75.20.96:80")
+        ChannelManager channelManager = ChannelBuilder.newBuilder().name("http://106.75.20.96:80")
                 .build();
         channelManager.start();
         MetricQueryServiceGrpc.MetricQueryServiceBlockingStub stub = channelManager.newStub(MetricQueryServiceGrpc::newBlockingStub);

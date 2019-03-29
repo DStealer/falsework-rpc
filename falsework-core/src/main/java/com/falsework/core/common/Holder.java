@@ -9,12 +9,15 @@ import com.google.common.base.Preconditions;
  */
 public class Holder<T> {
     private T t;
+    private boolean set;
 
     public Holder(T t) {
+        this.set = true;
         this.t = t;
     }
 
     public Holder() {
+        this.set = false;
     }
 
     public T get() {
@@ -27,11 +30,17 @@ public class Holder<T> {
     }
 
     public void set(T t) {
+        this.set=true;
         this.t = t;
     }
 
     public void setNonNull(T t) {
         Preconditions.checkNotNull(t);
+        this.set=true;
         this.t = t;
+    }
+
+    public boolean isSet() {
+        return set;
     }
 }

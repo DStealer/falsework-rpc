@@ -21,4 +21,9 @@ public interface PropsVars extends com.falsework.core.config.PropsVars {
      * 组白名单
      */
     String REGISTER_GROUP_WHITE_LIST = "register.group.white.list";
+
+    /**
+     * 复制token
+     */
+    String REGISTER_REPLICA_TOKEN = "register.replica.token";
 }

@@ -1,14 +1,14 @@
 package com.falsework.client.dependecy;
 
 import com.falsework.core.client.ChannelManager;
-import com.falsework.core.client.ChannelManagerBuilder;
+import com.falsework.core.client.ChannelBuilder;
 import com.falsework.service.generated.EchoServiceGrpc;
 import com.google.inject.AbstractModule;
 
 public class DependencyModule extends AbstractModule {
     @Override
     protected void configure() {
-        ChannelManager manager = ChannelManagerBuilder.newBuilder()
+        ChannelManager manager = ChannelBuilder.newBuilder()
                 .name("dynamic://service-v1")
                 .build();
         try {

@@ -21,21 +21,6 @@ public class HttpResolverProvider extends NameResolverProvider {
     private HttpResolverProvider() {
     }
 
-    /**
-     * 解析地址 例如127.0.0.1:8080
-     *
-     * @param authority
-     * @return
-     */
-    private static InetSocketAddress parse(String authority) {
-        String[] strings = authority.split(":", 2);
-        try {
-            return new InetSocketAddress(strings[0], Integer.parseInt(strings[1]));
-        } catch (NumberFormatException e) {
-            return new InetSocketAddress(strings[0], 80);
-        }
-    }
-
     @Override
     protected boolean isAvailable() {
         return true;
@@ -75,6 +60,21 @@ public class HttpResolverProvider extends NameResolverProvider {
             };
         } else {
             return null;
+        }
+    }
+
+    /**
+     * 解析地址 例如127.0.0.1:8080
+     *
+     * @param authority
+     * @return
+     */
+    private static InetSocketAddress parse(String authority) {
+        String[] strings = authority.split(":", 2);
+        try {
+            return new InetSocketAddress(strings[0], Integer.parseInt(strings[1]));
+        } catch (NumberFormatException e) {
+            return new InetSocketAddress(strings[0], 80);
         }
     }
 

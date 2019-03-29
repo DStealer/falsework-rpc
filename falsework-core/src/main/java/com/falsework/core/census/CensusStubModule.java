@@ -1,7 +1,7 @@
 package com.falsework.core.census;
 
 import com.falsework.core.client.ChannelManager;
-import com.falsework.core.client.ChannelManagerBuilder;
+import com.falsework.core.client.ChannelBuilder;
 import com.falsework.core.config.Props;
 import com.falsework.core.config.PropsManager;
 import com.falsework.core.config.PropsVars;
@@ -20,7 +20,7 @@ public class CensusStubModule extends AbstractModule {
         try {
             Props props = PropsManager.getProps();
             //建立采集数据客户端
-            ChannelManager manager = ChannelManagerBuilder.newBuilder()
+            ChannelManager manager = ChannelBuilder.newBuilder()
                     .name(props.getProperty(PropsVars.CENSUS_ADDRESS))
                     .build();
             manager.start();

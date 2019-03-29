@@ -1,10 +1,7 @@
 package com.falsework.governance.registry;
 
 import com.falsework.core.config.Props;
-import com.falsework.core.generated.governance.GroupInfo;
-import com.falsework.core.generated.governance.InstanceInfo;
-import com.falsework.core.generated.governance.InstanceStatus;
-import com.falsework.core.generated.governance.ServiceInfo;
+import com.falsework.core.generated.governance.*;
 import com.falsework.governance.composite.ErrorCode;
 import com.falsework.governance.config.PropsVars;
 import com.falsework.governance.generated.RegistryGroupInfo;
@@ -76,6 +73,8 @@ public class InstanceRegistry {
             });
 
             instanceInfoLease.renew();
+            serviceInfo.markDirty();//记录变更
+            groupInfo.markDirty();//记录变更
 
             if (this.replicationPeers != null) {
                 this.replicationPeers.register(instanceInfoLease.replicaSnapshot());
@@ -109,6 +108,8 @@ public class InstanceRegistry {
                 throw ErrorCode.NOT_FOUND.asException("instance not find");
             }
             serviceInfo.getLeaseMap().remove(instanceId);
+            serviceInfo.markDirty();//记录变更
+            groupInfo.markDirty();//记录变更
             if (this.replicationPeers != null) {
                 this.replicationPeers.cancel(groupName, serviceName, instanceId);
             }
@@ -142,7 +143,8 @@ public class InstanceRegistry {
         }
         leaseInfo.renew();
         if (this.replicationPeers != null) {
-            this.replicationPeers.renew(groupName, serviceName, instanceId, leaseInfo.getLastDirtyTimestamp());
+            this.replicationPeers.renew(groupName, serviceName, instanceId,
+                    leaseInfo.getInstanceInfo().getLastDirtyTimestamp());
         }
     }
 
@@ -173,10 +175,12 @@ public class InstanceRegistry {
         instanceInfo.setStatus(status);
         instanceInfo.getAttributes().clear();
         instanceInfo.getAttributes().putAll(attributesMap);
-        leaseInfo.setLastDirtyTimestamp(System.currentTimeMillis());
+        instanceInfo.markDirty();
+        serviceInfo.markDirty();//记录变更
+        groupInfo.markDirty();//记录变更
         if (this.replicationPeers != null) {
             this.replicationPeers.change(groupName, serviceName, instanceId, status,
-                    attributesMap, leaseInfo.getLastDirtyTimestamp());
+                    attributesMap, instanceInfo.getLastDirtyTimestamp());
         }
     }
 
@@ -300,9 +304,39 @@ public class InstanceRegistry {
                         continue;
                     }
                     serviceInfo.getLeaseMap().remove(instanceId);
+                    serviceInfo.markDirty();
+                    groupInfo.markDirty();
                 } finally {
                     this.readWriteLock.readLock().unlock();
                 }
+            }
+        }
+
+        //避免无效对象过多,移除
+        if (this.readWriteLock.writeLock().tryLock()) {
+            try {
+                List<String> invalidGroups = new LinkedList<>();
+                for (Map.Entry<String, InnerGroupInfo> groupInfoEntry : this.multiGroupInfo.entrySet()) {
+                    List<String> invalidServices = new LinkedList<>();
+                    for (Map.Entry<String, InnerServiceInfo> serviceInfoEntry : groupInfoEntry.getValue().getServiceMap().entrySet()) {
+                        if (serviceInfoEntry.getValue().getLeaseMap().size() == 0) {
+                            invalidServices.add(serviceInfoEntry.getKey());
+                        }
+                    }
+                    for (String service : invalidServices) {
+                        groupInfoEntry.getValue().getServiceMap().remove(service);
+                        LOGGER.info("remove invalid service:{}", service);
+                    }
+                    if (groupInfoEntry.getValue().getServiceMap().size() == 0) {
+                        invalidGroups.add(groupInfoEntry.getKey());
+                    }
+                }
+                for (String group : invalidGroups) {
+                    this.multiGroupInfo.remove(group);
+                    LOGGER.info("remove invalid service:{}", group);
+                }
+            } finally {
+                this.readWriteLock.writeLock().unlock();
             }
         }
 
@@ -435,17 +469,22 @@ public class InstanceRegistry {
      * @param groupHashInfoMap
      * @return
      */
-    public Collection<GroupInfo> deltaGroup(Map<String, String> groupHashInfoMap) {
-        List<GroupInfo> list = new ArrayList<>();
+    public Collection<DeltaGroupInfo> groupDelta(Map<String, String> groupHashInfoMap) {
+        List<DeltaGroupInfo> list = new ArrayList<>();
         for (Map.Entry<String, String> entry : groupHashInfoMap.entrySet()) {
             InnerGroupInfo info = this.multiGroupInfo.get(entry.getKey());
             if (info == null) {
-                list.add(GroupInfo.newBuilder()
-                        .setGroupName(entry.getKey())
-                        .setHash("group not found")
+                list.add(DeltaGroupInfo.newBuilder()
+                        .setAction(Action.DELETED)
+                        .setGroupInfo(GroupInfo.newBuilder()
+                                .setGroupName(entry.getKey())
+                                .build())
                         .build());
-            } else if (!info.reHash().equals(entry.getValue())) {
-                list.add(info.snapshot());
+            } else if (!info.getHash().equals(entry.getValue())) {
+                list.add(DeltaGroupInfo.newBuilder()
+                        .setGroupInfo(info.snapshot())
+                        .setAction(Action.MODIFY)
+                        .build());
             }
         }
 
@@ -456,26 +495,31 @@ public class InstanceRegistry {
      * 检测服务变更
      *
      * @param groupName
-     * @param serviceHashInfoMap
+     * @param hashInfos
      * @return
      */
-    public Collection<ServiceInfo> deltaService(String groupName, Map<String, String> serviceHashInfoMap) {
+    public Collection<DeltaServiceInfo> serviceDelta(String groupName, Map<String, String> hashInfos) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("group not find");
         }
-        List<ServiceInfo> list = new ArrayList<>();
+        List<DeltaServiceInfo> list = new ArrayList<>();
         ConcurrentHashMap<String, InnerServiceInfo> serviceMap = groupInfo.getServiceMap();
-        for (Map.Entry<String, String> entry : serviceHashInfoMap.entrySet()) {
+        for (Map.Entry<String, String> entry : hashInfos.entrySet()) {
             InnerServiceInfo serviceInfo = serviceMap.get(entry.getKey());
             if (serviceInfo == null) {
-                list.add(ServiceInfo.newBuilder()
-                        .setGroupName(groupName)
-                        .setServiceName(entry.getKey())
-                        .setHash("service not fund")
+                list.add(DeltaServiceInfo.newBuilder()
+                        .setServiceInfo(ServiceInfo.newBuilder()
+                                .setGroupName(groupName)
+                                .setServiceName(entry.getKey())
+                                .build())
+                        .setAction(Action.DELETED)
                         .build());
-            } else if (!serviceInfo.reHash().equals(entry.getValue())) {
-                list.add(serviceInfo.snapshot());
+            } else if (!serviceInfo.getHash().equals(entry.getValue())) {
+                list.add(DeltaServiceInfo.newBuilder()
+                        .setServiceInfo(serviceInfo.snapshot())
+                        .setAction(Action.MODIFY)
+                        .build());
             }
         }
 
@@ -487,10 +531,10 @@ public class InstanceRegistry {
      *
      * @param groupName
      * @param serviceName
-     * @param instanceHashInfoMap
+     * @param hashInfos
      * @return
      */
-    public Collection<InstanceInfo> deltaInstance(String groupName, String serviceName, Map<String, String> instanceHashInfoMap) {
+    public Collection<DeltaInstanceInfo> instanceDelta(String groupName, String serviceName, Map<String, String> hashInfos) {
         InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
         if (groupInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("group not found");
@@ -500,18 +544,23 @@ public class InstanceRegistry {
             throw ErrorCode.NOT_FOUND.asException("service not found");
         }
         ConcurrentHashMap<String, InstanceLeaseInfo> instanceMap = serviceInfo.getLeaseMap();
-        List<InstanceInfo> list = new ArrayList<>();
-        for (Map.Entry<String, String> entry : instanceHashInfoMap.entrySet()) {
-            InstanceLeaseInfo info = instanceMap.get(entry.getKey());
-            if (info == null) {
-                list.add(InstanceInfo.newBuilder()
-                        .setGroupName(groupName)
-                        .setServiceName(serviceName)
-                        .setInstanceId(entry.getKey())
-                        .setHash("not found")
+        List<DeltaInstanceInfo> list = new ArrayList<>();
+        for (Map.Entry<String, String> entry : hashInfos.entrySet()) {
+            InstanceLeaseInfo leaseInfo = instanceMap.get(entry.getKey());
+            if (leaseInfo == null) {
+                list.add(DeltaInstanceInfo.newBuilder()
+                        .setInstanceInfo(InstanceInfo.newBuilder()
+                                .setGroupName(groupName)
+                                .setServiceName(serviceName)
+                                .setInstanceId(entry.getKey())
+                                .build())
+                        .setAction(Action.DELETED)
                         .build());
-            } else if (!info.reHash().equals(entry.getValue())) {
-                list.add(info.getInstanceInfo().snapshot());
+            } else if (!leaseInfo.getInstanceInfo().getHash().equals(entry.getValue())) {
+                list.add(DeltaInstanceInfo.newBuilder()
+                        .setInstanceInfo(leaseInfo.getInstanceInfo().snapshot())
+                        .setAction(Action.MODIFY)
+                        .build());
             }
         }
         return list;
@@ -522,7 +571,7 @@ public class InstanceRegistry {
      *
      * @return
      */
-    public Collection<RegistryGroupInfo> replicaRegistry() {
+    public Collection<RegistryGroupInfo> fetchRegistry() {
         try {
             this.readWriteLock.readLock().lock();
             return this.multiGroupInfo.values().stream()
@@ -555,14 +604,19 @@ public class InstanceRegistry {
             InstanceLeaseInfo existLease = serviceInfo.getLeaseMap().get(instance.getInstanceId());
             if (existLease == null) {
                 serviceInfo.getLeaseMap().put(instance.getInstanceId(), new InstanceLeaseInfo(lease));
+                serviceInfo.markDirty();
+                groupInfo.markDirty();
                 LOGGER.info("register success");
             } else {
-                if (existLease.getLastDirtyTimestamp() < lease.getLastDirtyTimestamp()) {
-                    LOGGER.info("replace exist lease:{} <= {}", existLease.getLastDirtyTimestamp(), lease.getLastDirtyTimestamp());
+                if (existLease.getInstanceInfo().getLastDirtyTimestamp() <= lease.getInstance().getLastDirtyTimestamp()) {
+                    LOGGER.info("replace exist lease:{} <= {}", existLease.getInstanceInfo().getLastDirtyTimestamp(),
+                            lease.getInstance().getLastDirtyTimestamp());
                     serviceInfo.getLeaseMap().put(instance.getInstanceId(), new InstanceLeaseInfo(lease));
+                    serviceInfo.markDirty();
+                    groupInfo.markDirty();
                 } else {
-                    LOGGER.warn("oop!,this should not happen:{} > {}", existLease.getLastDirtyTimestamp(),
-                            lease.getLastDirtyTimestamp());
+                    LOGGER.warn("oop!,this should not happen:{} > {}", existLease.getInstanceInfo().getLastDirtyTimestamp(),
+                            lease.getInstance().getLastDirtyTimestamp());
                 }
             }
         } finally {
@@ -594,6 +648,8 @@ public class InstanceRegistry {
                 throw ErrorCode.NOT_FOUND.asException("instance not find");
             }
             serviceInfo.getLeaseMap().remove(instanceId);
+            serviceInfo.markDirty();
+            groupInfo.markDirty();
             LOGGER.info("cancel success");
         } finally {
             this.readWriteLock.readLock().unlock();
@@ -612,28 +668,35 @@ public class InstanceRegistry {
      */
     public void replicaChange(String groupName, String serviceName, String instanceId, InstanceStatus status,
                               Map<String, String> attributesMap, long lastDirtyTimestamp) {
-        InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
-        if (groupInfo == null) {
-            throw ErrorCode.NOT_FOUND.asException("group not find");
-        }
-        InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
-        if (serviceInfo == null) {
-            throw ErrorCode.NOT_FOUND.asException("service not find");
-        }
-        InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
-        if (leaseInfo == null) {
-            throw ErrorCode.NOT_FOUND.asException("instance not find");
-        }
-        if (leaseInfo.getLastDirtyTimestamp() <= lastDirtyTimestamp) {
-            InnerInstanceInfo instanceInfo = leaseInfo.getInstanceInfo();
-            instanceInfo.setStatus(status);
-            instanceInfo.getAttributes().clear();
-            instanceInfo.getAttributes().putAll(attributesMap);
-            leaseInfo.setLastDirtyTimestamp(lastDirtyTimestamp);
-            LOGGER.info("replica change success");
-        } else {
-            LOGGER.warn("oop!,this should not happen:{} > {}", leaseInfo.getLastDirtyTimestamp(),
-                    lastDirtyTimestamp);
+        try {
+            this.readWriteLock.readLock().lock();
+            InnerGroupInfo groupInfo = this.multiGroupInfo.get(groupName);
+            if (groupInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("group not find");
+            }
+            InnerServiceInfo serviceInfo = groupInfo.getServiceMap().get(serviceName);
+            if (serviceInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("service not find");
+            }
+            InstanceLeaseInfo leaseInfo = serviceInfo.getLeaseMap().get(instanceId);
+            if (leaseInfo == null) {
+                throw ErrorCode.NOT_FOUND.asException("instance not find");
+            }
+            if (leaseInfo.getInstanceInfo().getLastDirtyTimestamp() <= lastDirtyTimestamp) {
+                InnerInstanceInfo instanceInfo = leaseInfo.getInstanceInfo();
+                instanceInfo.setStatus(status);
+                instanceInfo.getAttributes().clear();
+                instanceInfo.getAttributes().putAll(attributesMap);
+                leaseInfo.getInstanceInfo().markDirty();
+                serviceInfo.markDirty();
+                groupInfo.markDirty();
+                LOGGER.info("replica change success");
+            } else {
+                LOGGER.warn("oop!,this should not happen:{} > {}", leaseInfo.getInstanceInfo().getLastDirtyTimestamp(),
+                        lastDirtyTimestamp);
+            }
+        } finally {
+            this.readWriteLock.readLock().unlock();
         }
     }
 
@@ -659,10 +722,10 @@ public class InstanceRegistry {
         if (leaseInfo == null) {
             throw ErrorCode.NOT_FOUND.asException("instance not find");
         }
-        if (leaseInfo.getLastDirtyTimestamp() < lastDirtyTimestamp) {
+        if (leaseInfo.getInstanceInfo().getLastDirtyTimestamp() < lastDirtyTimestamp) {
             LOGGER.warn("my instance is dirty...{}|{}|{}", groupName, serviceName, instanceId);
             throw ErrorCode.NOT_FOUND.asException("instance is dirty");
-        } else if (leaseInfo.getLastDirtyTimestamp() > lastDirtyTimestamp) {
+        } else if (leaseInfo.getInstanceInfo().getLastDirtyTimestamp() > lastDirtyTimestamp) {
             LOGGER.warn("bs:my instance is newly...{}|{}|{}", groupName, serviceName, instanceId);
             return leaseInfo.replicaSnapshot();
         } else {

@@ -42,7 +42,7 @@ public class MeasuredRate {
      */
     public MeasuredRate(long sampleInterval) {
         this.sampleInterval = sampleInterval;
-        this.timer = new Timer("Eureka-MeasureRateTimer", true);
+        this.timer = new Timer("MeasureRateTimer", true);
         this.isActive = false;
     }
 

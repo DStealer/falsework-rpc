@@ -1,9 +1,8 @@
 package com.falsework.core.client;
 
 import com.falsework.core.common.Builder;
-import com.falsework.core.grpc.CompositeResolverFactoryManager;
-import com.falsework.core.grpc.LoadBalancerPolicyManager;
-import com.falsework.core.grpc.SharedExecutorManager;
+import com.falsework.core.grpc.ChannelConfigurer;
+import com.falsework.core.grpc.ChannelConfigurerManager;
 import com.google.common.base.Preconditions;
 import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
@@ -22,8 +21,8 @@ import java.util.concurrent.Executor;
 /**
  * 通道builder
  */
-public class ChannelManagerBuilder implements Builder<ChannelManager> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ChannelManagerBuilder.class);
+public class ChannelBuilder implements Builder<ChannelManager> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ChannelBuilder.class);
     private String name;
     private Executor executor;
     private NameResolver.Factory factory;
@@ -32,11 +31,11 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
     private int messageSizeByte;
     private int metadataSizeByte;
 
-    private ChannelManagerBuilder() {
+    private ChannelBuilder() {
     }
 
-    public static ChannelManagerBuilder newBuilder() {
-        return new ChannelManagerBuilder();
+    public static ChannelBuilder newBuilder() {
+        return new ChannelBuilder();
     }
 
     /**
@@ -45,7 +44,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
      * @param name
      */
 
-    public ChannelManagerBuilder name(String name) {
+    public ChannelBuilder name(String name) {
         Preconditions.checkNotNull(name, "name");
         this.name = name;
         return this;
@@ -58,7 +57,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
      * @return
      */
 
-    public ChannelManagerBuilder executor(Executor executor) {
+    public ChannelBuilder executor(Executor executor) {
         Preconditions.checkNotNull(executor, "executor invalid");
         this.executor = executor;
         return this;
@@ -70,7 +69,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
      * @param factory
      * @return
      */
-    public ChannelManagerBuilder nameFactory(NameResolver.Factory factory) {
+    public ChannelBuilder nameFactory(NameResolver.Factory factory) {
         Preconditions.checkNotNull(factory, "factory invalid");
         this.factory = factory;
         return this;
@@ -83,7 +82,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
      * @return
      */
 
-    public ChannelManagerBuilder intercept(ClientInterceptor interceptor) {
+    public ChannelBuilder intercept(ClientInterceptor interceptor) {
         Preconditions.checkNotNull(interceptor, "interceptor invalid");
         this.interceptorList.add(interceptor);
         return this;
@@ -96,7 +95,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
      * @return
      */
 
-    public ChannelManagerBuilder listener(ChannelListener listener) {
+    public ChannelBuilder listener(ChannelListener listener) {
         Preconditions.checkNotNull(listener, "listener invalid");
         this.listeners.add(listener);
         return this;
@@ -110,7 +109,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
      * @return
      */
 
-    public ChannelManagerBuilder maxInMessageSize(int messageSizeByte, int metadataSizeByte) {
+    public ChannelBuilder maxInMessageSize(int messageSizeByte, int metadataSizeByte) {
         Preconditions.checkArgument(messageSizeByte < 1024 * 1024, "messageSizeByte too small");
         Preconditions.checkArgument(metadataSizeByte < 1024 * 1024, "metadataSizeByte too small");
         this.messageSizeByte = messageSizeByte;
@@ -122,19 +121,26 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
     @Override
     public ChannelManager build() {
         NettyChannelBuilder builder = NettyChannelBuilder.forTarget(this.name);
+        ChannelConfigurer configurer = ChannelConfigurerManager.getConfigurer();
         if (this.executor != null) {
             builder.executor(this.executor);
         } else {
-            builder.executor(SharedExecutorManager.getShared());
+            builder.executor(configurer.getDefaultChannelExecutor());
         }
         if (this.factory != null) {
             builder.nameResolverFactory(factory);
         } else {
-            builder.nameResolverFactory(CompositeResolverFactoryManager.getFactory());
+            builder.nameResolverFactory(configurer.getResolverFactory());
         }
+
         for (ClientInterceptor interceptor : this.interceptorList) {
             builder.intercept(interceptor);
         }
+
+        for (ClientInterceptor interceptor : configurer.getDefaultClientInterceptors()) {
+            builder.intercept(interceptor);
+        }
+
         if (this.messageSizeByte > 0 && this.metadataSizeByte > 0) {
             builder.maxInboundMessageSize(this.messageSizeByte);
             builder.maxInboundMetadataSize(this.metadataSizeByte);
@@ -142,7 +148,7 @@ public class ChannelManagerBuilder implements Builder<ChannelManager> {
         //内部配置
         builder.usePlaintext();
 
-        builder.defaultLoadBalancingPolicy(LoadBalancerPolicyManager.get());
+        builder.defaultLoadBalancingPolicy(configurer.getLoadBalancerPolicy());
 
         InternalNettyChannelBuilder.setStatsRecordStartedRpcs(builder, false);
 

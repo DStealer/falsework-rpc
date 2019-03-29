@@ -3,7 +3,8 @@ package com.falsework.census.composite;
 import com.falsework.core.composite.ResponseMetaException;
 import com.falsework.core.generated.common.ResponseMeta;
 
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -29,6 +30,20 @@ public enum ErrorCode {
 
 
     INTERNAL("CS9999", "Internal error");//未定义内部错误
+    private static final Map<ErrorCode, ResponseMeta> metaByErrorCode;
+    private static final Map<ErrorCode, ResponseMetaException> exceptionByErrorCode;
+
+    static {
+        Map<ErrorCode, ResponseMeta> realMetaMap = new LinkedHashMap<>();
+        Map<ErrorCode, ResponseMetaException> realExceptionMap = new LinkedHashMap<>();
+        for (ErrorCode ec : ErrorCode.values()) {
+            realMetaMap.put(ec, ResponseMeta.newBuilder().
+                    setErrCode(ec.code).setDetails(ec.description).build());
+            realExceptionMap.put(ec, new ResponseMetaException(ec.code, ec.description));
+        }
+        exceptionByErrorCode = Collections.unmodifiableMap(realExceptionMap);
+        metaByErrorCode = Collections.unmodifiableMap(realMetaMap);
+    }
 
     private final String code;
     private final String description;
@@ -45,7 +60,7 @@ public enum ErrorCode {
      * @return
      */
     public ResponseMeta toResponseMeta() {
-        return ErrCodeInternal.RESPONSE_META_MAP.get(this);
+        return metaByErrorCode.get(this);
     }
 
     /**
@@ -82,7 +97,7 @@ public enum ErrorCode {
      * @return
      */
     public ResponseMetaException asException() {
-        return ErrCodeInternal.RESPONSE_META_EXCEPTION_MAP.get(this);
+        return exceptionByErrorCode.get(this);
     }
 
     /**
@@ -117,23 +132,4 @@ public enum ErrorCode {
     public ResponseMetaException asException(String description, Throwable cause) {
         return new ResponseMetaException(this.code, description, cause);
     }
-
-    /**
-     * 使用静态类存储减少新建对象数量
-     */
-    private static class ErrCodeInternal {
-        private static final Map<ErrorCode, ResponseMeta> RESPONSE_META_MAP = new HashMap<>();
-        private static final Map<ErrorCode, ResponseMetaException> RESPONSE_META_EXCEPTION_MAP = new HashMap<>();
-
-        static {
-            for (ErrorCode ec : ErrorCode.values()) {
-                RESPONSE_META_MAP.put(ec, ResponseMeta.newBuilder()
-                        .setErrCode(ec.code)
-                        .setDetails(ec.description)
-                        .build());
-                RESPONSE_META_EXCEPTION_MAP.put(ec, new ResponseMetaException(ec.code, ec.description));
-            }
-        }
-    }
-
 }

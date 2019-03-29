@@ -1,11 +1,11 @@
 package com.falsework.core.governance;
 
+import com.falsework.core.composite.RateLimiter;
 import com.falsework.core.generated.governance.InstanceInfo;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.grpc.Attributes;
 import io.grpc.EquivalentAddressGroup;
-import io.grpc.NameResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +14,7 @@ import java.util.EventListener;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -21,26 +22,28 @@ import java.util.stream.Collectors;
  */
 public class ResolverGovernor implements EventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResolverGovernor.class);
-    private final ConcurrentHashMap<String, NameResolver.Listener> listeners = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Resolver> listeners = new ConcurrentHashMap<>();
     private final DiscoveryClient client;
+    private final RateLimiter rateLimiter;
 
     ResolverGovernor(DiscoveryClient client) {
         Preconditions.checkNotNull(client);
         this.client = client;
+        this.rateLimiter = new RateLimiter(TimeUnit.SECONDS);
     }
 
     /**
      * 注册
      *
      * @param serviceName
-     * @param listener
+     * @param resolver
      */
-    public void register(String serviceName, NameResolver.Listener listener) {
+    public void register(String serviceName, Resolver resolver) {
         LOGGER.info("register dependency:{}", serviceName);
         if (this.listeners.containsKey(serviceName)) {
             throw new UnsupportedOperationException("duplicates key...");
         }
-        this.listeners.putIfAbsent(serviceName, listener);
+        this.listeners.putIfAbsent(serviceName, resolver);
         this.client.registerDependency(serviceName);
     }
 
@@ -63,8 +66,8 @@ public class ResolverGovernor implements EventListener {
      */
     public void onChange(String serviceName, List<InstanceInfo> instanceInfos) {
         LOGGER.info("service instances change:{}", serviceName);
-        NameResolver.Listener listener = this.listeners.get(serviceName);
-        if (listener != null) {
+        Resolver resolver = this.listeners.get(serviceName);
+        if (resolver != null) {
             List<EquivalentAddressGroup> groups = instanceInfos
                     .stream()
                     .map(e -> {
@@ -75,7 +78,7 @@ public class ResolverGovernor implements EventListener {
                         return new EquivalentAddressGroup(Lists.newArrayList(
                                 new InetSocketAddress(e.getIpAddress(), e.getPort())), builder.build());
                     }).collect(Collectors.toList());
-            listener.onAddresses(groups, Attributes.EMPTY);
+            resolver.getListener().onAddresses(groups, Attributes.EMPTY);
         }
     }
 
@@ -86,8 +89,12 @@ public class ResolverGovernor implements EventListener {
      * @param serviceName
      */
     public void refresh(String serviceName) {
-        LOGGER.info("refresh for:{}", serviceName);
+        if (!this.rateLimiter.acquire(5, 2)) {
+            return;
+        }
+        LOGGER.info("resolve for:{}", serviceName);
         List<InstanceInfo> instanceInfos = this.client.getServiceInstance(serviceName);
+        LOGGER.info("address group:{}", instanceInfos);
         if (instanceInfos.size() > 0) {
             List<EquivalentAddressGroup> groups = instanceInfos
                     .stream()
@@ -99,8 +106,8 @@ public class ResolverGovernor implements EventListener {
                         return new EquivalentAddressGroup(Lists.newArrayList(
                                 new InetSocketAddress(e.getIpAddress(), e.getPort())), builder.build());
                     }).collect(Collectors.toList());
-            NameResolver.Listener listener = this.listeners.get(serviceName);
-            listener.onAddresses(groups, Attributes.EMPTY);
+            Resolver resolver = this.listeners.get(serviceName);
+            resolver.getListener().onAddresses(groups, Attributes.EMPTY);
         } else {
             LOGGER.warn("refresh service:{} with 0 instance", serviceName);
         }
