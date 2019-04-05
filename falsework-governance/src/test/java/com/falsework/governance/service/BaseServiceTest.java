@@ -12,7 +12,7 @@ public class BaseServiceTest {
     @Before
     public void before() throws Exception {
         this.channelManager = ChannelBuilder.newBuilder()
-                .name("http://127.0.0.1:8002")
+                .name("http://127.0.0.1:6000")
                 .nameFactory(HttpResolverProvider.SINGLTON)
                 .build();
         this.channelManager.start();

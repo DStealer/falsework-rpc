@@ -21,8 +21,13 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.falsework.core</groupId>
+            <artifactId>falsework-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
         </dependency>
+
     </dependencies>
 </project>

@@ -10,62 +10,13 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.logging.LoggingHandler;
 import org.junit.Test;
-
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.TrustManagerFactory;
-import java.io.InputStream;
-import java.security.KeyStore;
 
 public class NettyTest {
 
     @Test
     public void tt01() throws Exception {
-        KeyManagerFactory factory = KeyManagerFactory.getInstance("SunX509");
-        KeyStore jks = KeyStore.getInstance("JKS");
-        try (InputStream inputStream = NettyTest.class.getResourceAsStream("sChat.jks")) {
-            jks.load(inputStream, "sNetty".toCharArray());
-            factory.init(jks, "sNetty".toCharArray());
-        }
-        SSLContext instance = SSLContext.getInstance("SSL");
-        instance.init(factory.getKeyManagers(), null, null);
-        SSLEngine engine = instance.createSSLEngine();
-        engine.setNeedClientAuth(false);
-
-    }
-
-    @Test
-    public void tt02() throws Exception {
-        TrustManagerFactory factory = TrustManagerFactory.getInstance("SunX509");
-        KeyStore jks = KeyStore.getInstance("JKS");
-        try (InputStream inputStream = NettyTest.class.getResourceAsStream("cChat.jks")) {
-            jks.load(inputStream, "cNetty".toCharArray());
-            factory.init(jks);
-        }
-        SSLContext instance = SSLContext.getInstance("SSL");
-        instance.init(null, factory.getTrustManagers(), null);
-        SSLEngine engine = instance.createSSLEngine();
-        engine.setNeedClientAuth(true);
-    }
-
-    @Test
-    public void tt03() throws Exception {
-        //-Djavax.net.debug=ssl,handshake
-
-        KeyManagerFactory factory = KeyManagerFactory.getInstance("SunX509");
-        KeyStore jks = KeyStore.getInstance("JKS");
-        try (InputStream inputStream = NettyTest.class.getResourceAsStream("sChat.jks")) {
-            jks.load(inputStream, "sNetty".toCharArray());
-            factory.init(jks, "sNetty".toCharArray());
-        }
-        SSLContext instance = SSLContext.getInstance("TLSv1.2");
-        instance.init(factory.getKeyManagers(), null, null);
-        SSLEngine engine = instance.createSSLEngine();
-        engine.setUseClientMode(false);
-
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
@@ -76,8 +27,8 @@ public class NettyTest {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
                             ch.pipeline()
-                                    .addFirst("ssl", new SslHandler(engine))
-                            .addLast();
+                                    .addFirst(new LoggingHandler())
+                                    .addLast("time", new TimeServerHandler());
                         }
                     })
                     .option(ChannelOption.SO_BACKLOG, 128)          // (5)
@@ -97,17 +48,7 @@ public class NettyTest {
     }
 
     @Test
-    public void tt04() throws Exception {
-        TrustManagerFactory factory = TrustManagerFactory.getInstance("SunX509");
-        KeyStore jks = KeyStore.getInstance("JKS");
-        try (InputStream inputStream = NettyTest.class.getResourceAsStream("cChat.jks")) {
-            jks.load(inputStream, "cNetty".toCharArray());
-            factory.init(jks);
-        }
-        SSLContext instance = SSLContext.getInstance("TLSv1.2");
-        instance.init(null, factory.getTrustManagers(), null);
-        SSLEngine engine = instance.createSSLEngine();
-        engine.setUseClientMode(true);
+    public void tt02() throws Exception {
 
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
@@ -119,12 +60,13 @@ public class NettyTest {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ch.pipeline()
-                            .addFirst("ssl", new SslHandler(engine));
+                            .addFirst(new LoggingHandler())
+                            .addLast("time", new TimeClientHandler());
                 }
             });
 
             // Start the client.
-            ChannelFuture f = b.connect("127.0.0.1", 8080).sync(); // (5)
+            ChannelFuture f = b.connect("localhost", 8080).sync(); // (5)
 
             // Wait until the connection is closed.
             f.channel().closeFuture().sync();

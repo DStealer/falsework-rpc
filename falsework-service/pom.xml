@@ -23,4 +23,16 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.falsework.core</groupId>
+                <artifactId>falsework-jdbc-maven-plugin</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <configuration>
+
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

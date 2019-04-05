@@ -46,6 +46,7 @@
         <module>falsework-gateway</module>
         <module>falsework-service</module>
         <module>falsework-client</module>
+        <module>falsework-jdbc-maven</module>
     </modules>
 
     <dependencyManagement>
