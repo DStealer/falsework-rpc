@@ -21,6 +21,12 @@ public class H2cBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if (!ctx.channel().config().isAutoRead()) {
+            ctx.read();
+        } else {
+            LOGGER.error("channel must not be auto read");
+            ChannelUtil.close(ctx);
+        }
         ctx.writeAndFlush(this.bufData).addListener(
                 (ChannelFutureListener) future -> {
                     if (future.isSuccess()) {

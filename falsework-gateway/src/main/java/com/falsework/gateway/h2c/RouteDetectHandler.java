@@ -1,7 +1,9 @@
 package com.falsework.gateway.h2c;
 
 import com.falsework.core.common.Holder;
+import com.falsework.core.generated.governance.InstanceInfo;
 import com.falsework.gateway.composite.ChannelUtil;
+import com.falsework.gateway.resolver.ServiceResolver;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -13,6 +15,8 @@ import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 
 public class RouteDetectHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(RouteDetectHandler.class);
@@ -23,6 +27,11 @@ public class RouteDetectHandler extends ChannelInboundHandlerAdapter {
     private final Holder<Http2Headers> http2HeadersHolder = new Holder<>();
     private final Holder<Http2Settings> http2SettingsHolder = new Holder<>();
     private final ByteBuf bufData = Unpooled.buffer();
+    private final ServiceResolver serviceResolver;
+
+    public RouteDetectHandler(ServiceResolver serviceResolver) {
+        this.serviceResolver = serviceResolver;
+    }
 
 
     @Override
@@ -34,6 +43,7 @@ public class RouteDetectHandler extends ChannelInboundHandlerAdapter {
             ChannelUtil.close(ctx);
         }
         this.bufData.writeBytes(this.prefaceBuf.duplicate());
+        ctx.fireChannelActive();
     }
 
     @Override
@@ -78,20 +88,19 @@ public class RouteDetectHandler extends ChannelInboundHandlerAdapter {
                 ChannelUtil.writeSettingsAck(ctx, ctx.newPromise()).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
             }
         });
-
         if (http2SettingsHolder.isSet() && http2HeadersHolder.isSet()) {
-            LOGGER.info("head:{}-channel:{}", http2HeadersHolder.get(), ctx.channel().remoteAddress());
+            LOGGER.info("head:{} channel:{}", http2HeadersHolder.get().path(), ctx.channel().remoteAddress());
             this.frameReader.close();
-            ctx.pipeline().remove(this);
-            ctx.fireUserEventTriggered(new ConnectionInfoEvent("127.0.0.1", 9002, this.bufData));
+            Optional<InstanceInfo> instanceInfo = this.serviceResolver.resolve(http2HeadersHolder.get(), ctx.channel());
+            if (instanceInfo.isPresent()) {
+                ctx.fireUserEventTriggered(new ConnectionInfoEvent(instanceInfo.get().getIpAddress(), instanceInfo.get().getPort(), this.bufData));
+                ctx.pipeline().remove(this);
+            } else {
+                LOGGER.error("not instance found for:{} from:{}", http2HeadersHolder.get().path(), ctx.channel().remoteAddress());
+                throw Http2Exception.connectionError(Http2Error.CONNECT_ERROR, "HTTP/2 not backend server found");
+            }
         } else {
             ctx.read();
         }
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        LOGGER.error("exception caught", cause);
-        ChannelUtil.close(ctx);
     }
 }

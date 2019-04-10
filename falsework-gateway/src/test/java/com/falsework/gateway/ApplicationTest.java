@@ -1,20 +1,10 @@
 package com.falsework.gateway;
 
-import static org.junit.Assert.assertTrue;
-
-import org.junit.Test;
-
 /**
  * Unit test for simple Application.
  */
-public class ApplicationTest
-{
-    /**
-     * Rigorous Test :-)
-     */
-    @Test
-    public void shouldAnswerWithTrue()
-    {
-        assertTrue( true );
+public class ApplicationTest {
+    public static void main(String[] args) throws Exception {
+        Application.main(args);
     }
 }

@@ -4,6 +4,7 @@ import com.falsework.gateway.composite.ChannelUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,12 @@ public class H2cFrontendHandler extends ChannelInboundHandlerAdapter {
                 }
             });
             this.outboundChannel = channelFuture.channel();
+        }
+
+        if (evt instanceof IdleStateEvent) {
+            LOGGER.info("channel:{} idle timeout", ctx.channel());
+            ChannelUtil.close(this.outboundChannel);
+            ChannelUtil.close(ctx);
         }
     }
 

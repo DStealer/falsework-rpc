@@ -13,4 +13,12 @@ public class EchoServiceTest extends BaseServiceTest {
         EchoResponse response = stub.echo(EchoRequest.newBuilder().setMsg("hello").build());
         System.out.println(response);
     }
+
+    @Test
+    public void forever() {
+        EchoServiceGrpc.EchoServiceBlockingStub stub = this.channelManager.newStub(EchoServiceGrpc::newBlockingStub);
+        while (true) {
+            stub.echo(EchoRequest.newBuilder().setMsg("hello").build());
+        }
+    }
 }
