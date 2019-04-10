@@ -12,7 +12,8 @@ public class RegistryServiceTest extends BaseServiceTest {
     public void registry() {
         RegistryServiceGrpc.RegistryServiceBlockingStub stub = this.channelManager.newStub(RegistryServiceGrpc::newBlockingStub);
 
-        RegistryRequest request = RegistryRequest.newBuilder().setMeta(RequestMeta.getDefaultInstance()).build();
+        RegistryRequest request = RegistryRequest.newBuilder().setMeta(RequestMeta.newBuilder()
+                .putAttributes("replica-token","falsework").build()).build();
         RegistryResponse response = stub.fetchRegistry(request);
         System.out.println(response);
 

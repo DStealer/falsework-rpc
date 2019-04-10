@@ -1,7 +1,7 @@
-package com.falsework.governance.service;
+package com.falsework.service.service;
 
-import com.falsework.core.client.ChannelManager;
 import com.falsework.core.client.ChannelBuilder;
+import com.falsework.core.client.ChannelManager;
 import com.falsework.core.grpc.HttpResolverProvider;
 import org.junit.After;
 import org.junit.Before;
@@ -12,7 +12,7 @@ public class BaseServiceTest {
     @Before
     public void before() throws Exception {
         this.channelManager = ChannelBuilder.newBuilder()
-                .name("http://127.0.0.1:8001")
+                .name("http://127.0.0.1:8080")
                 .nameFactory(HttpResolverProvider.SINGLTON)
                 .build();
         this.channelManager.start();
