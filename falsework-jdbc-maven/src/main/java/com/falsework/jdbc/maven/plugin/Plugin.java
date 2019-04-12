@@ -1,7 +1,7 @@
 package com.falsework.jdbc.maven.plugin;
 
+import com.falsework.jdbc.maven.config.Config;
 import com.falsework.jdbc.maven.config.Jdbc;
-import com.falsework.jdbc.maven.config.Target;
 import com.falsework.jdbc.maven.generator.Generator;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -21,19 +21,25 @@ public class Plugin extends AbstractMojo {
     private MavenProject project;
     @Parameter(property = "jdbc", required = true)
     private Jdbc jdbc;
-    @Parameter(property = "target", required = true)
-    private Target target;
+    @Parameter(property = "config", required = true)
+    private Config config;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         getLog().info("run generate");
+        getLog().info("jdbc:" + this.jdbc);
+        getLog().info("config:" + this.config);
 
-        if (!new File(target.getDirectory()).isAbsolute())
-            target.setDirectory(project.getBasedir() + File.separator + target.getDirectory());
+        if (!config.getDirectory().isAbsolute())
+            config.setDirectory(new File(project.getBasedir(), config.getDirectory().getPath()));
 
-        Generator generator = new Generator(jdbc, target);
-        generator.run();
-        project.addCompileSourceRoot(target.getDirectory());
-        getLog().info("run completely!");
+        Generator generator = new Generator(jdbc, config);
+        try {
+            generator.run();
+            project.addCompileSourceRoot(config.getDirectory().getAbsolutePath());
+            getLog().info("run completely!");
+        } catch (Exception e) {
+            throw new MojoExecutionException("generate code failed", e);
+        }
     }
 }

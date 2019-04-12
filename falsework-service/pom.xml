@@ -18,6 +18,10 @@
             <artifactId>falsework-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>
@@ -30,8 +34,28 @@
                 <artifactId>falsework-jdbc-maven-plugin</artifactId>
                 <version>1.0-SNAPSHOT</version>
                 <configuration>
-
+                    <jdbc>
+                        <driver>com.mysql.cj.jdbc.Driver</driver>
+                        <url>jdbc:mysql://127.0.0.1:3306/testdb?useSSL=false</url>
+                        <catalog>testdb</catalog>
+                        <!-- <catalog></catalog>-->
+                        <username>user</username>
+                        <password>user</password>
+                    </jdbc>
+                    <config>
+                        <packageName>com.falsework.service.service.module</packageName>
+                        <!--<directory></directory>
+                         <encoding></encoding>
+                         <typeConverterClass></typeConverterClass>-->
+                    </config>
                 </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>mysql</groupId>
+                        <artifactId>mysql-connector-java</artifactId>
+                        <version>8.0.11</version>
+                    </dependency>
+                </dependencies>
             </plugin>
         </plugins>
     </build>
