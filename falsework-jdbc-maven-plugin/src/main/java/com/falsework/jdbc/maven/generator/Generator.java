@@ -17,6 +17,7 @@ import java.sql.Driver;
 import java.sql.ResultSet;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 
 public class Generator {
@@ -30,35 +31,42 @@ public class Generator {
 
     @SuppressWarnings("unchecked")
     public void run() throws Exception {
-        TypeConverter converter = (TypeConverter) Utils.loadClass(this.config.getTypeConverterClass()).getDeclaredConstructor().newInstance();
+        TypeConverter converter = (TypeConverter) Utils.loadClass(this.config.getTypeConverterClass())
+                .getDeclaredConstructor().newInstance();
 
         Class<? extends Driver> driver = (Class<? extends Driver>) Utils.loadClass(this.jdbc.getDriver());
         Properties properties = this.jdbc.getProperties() == null ? new Properties() : this.jdbc.getProperties();
-        properties.put("user", this.jdbc.getUsername());
-        properties.put("password", this.jdbc.getPassword());
+        if (!Objects.isNull(this.jdbc.getUsername())) {
+            properties.put("user", this.jdbc.getUsername());
+        }
+        if (!Objects.isNull(this.jdbc.getPassword())) {
+            properties.put("password", this.jdbc.getPassword());
+        }
+
         Connection connection = driver.getDeclaredConstructor().newInstance().connect(this.jdbc.getUrl(), properties);
 
         DatabaseMetaData databaseMetaData = connection.getMetaData();
 
-        DatabaseDefinition databaseDefinition = new DatabaseDefinition(this.jdbc.getCatalog(), this.jdbc.getSchema(), "");
+        DatabaseDefinition databaseDefinition = new DatabaseDefinition(this.jdbc.getCatalog(), this.jdbc.getSchema());
 
-        ResultSet tableResultSet = databaseMetaData.getTables(databaseDefinition.getCatalog(), databaseDefinition.getSchema(), null, null);
+        ResultSet tableResultSet = databaseMetaData.getTables(databaseDefinition.getCatalog(), databaseDefinition
+                .getSchema(), null, null);
 
         while (tableResultSet.next()) {
             TableDefinition tableDefinition = new TableDefinition(tableResultSet.getString(3),
                     tableResultSet.getString(4), tableResultSet.getString(5));
             databaseDefinition.addTable(tableDefinition);
 
-            ResultSet columnResultSet = databaseMetaData.getColumns(databaseDefinition.getCatalog(), databaseDefinition.getSchema(),
-                    tableDefinition.getName(), null);
+            ResultSet columnResultSet = databaseMetaData.getColumns(databaseDefinition.getCatalog(),
+                    databaseDefinition.getSchema(), tableDefinition.getName(), null);
             while (columnResultSet.next()) {
                 int sqlType = columnResultSet.getInt(5);
                 String jdbcType = columnResultSet.getString(6);
                 Class javaType = converter.convert(jdbcType, sqlType);
                 ColumnDefinition columnDefinition = new ColumnDefinition(columnResultSet.getString(4),
                         sqlType, jdbcType, javaType, columnResultSet.getInt(7)
-                        , columnResultSet.getInt(17), columnResultSet.getString(13), columnResultSet.getInt(11),
-                        columnResultSet.getString(12));
+                        , columnResultSet.getInt(17), columnResultSet.getString(13),
+                        columnResultSet.getInt(11), columnResultSet.getString(12));
                 tableDefinition.addColumn(columnDefinition);
             }
         }
@@ -66,51 +74,53 @@ public class Generator {
     }
 
     private void generate(DatabaseDefinition databaseDefinition, Config config) throws Exception {
-        File targetDir = this.config.getDirectory();
+        File targetDir = config.getDirectory();
         if (targetDir.exists()) {
             FileUtils.cleanDirectory(targetDir);
         } else {
             targetDir.mkdirs();
         }
         for (TableDefinition tableDefinition : databaseDefinition.getTableDefinitionList()) {
-            generate(tableDefinition, targetDir);
+            generate(tableDefinition, targetDir, config);
         }
     }
 
-    private void generate(TableDefinition tableDefinition, File targetDir) throws Exception {
+    private void generate(TableDefinition tableDefinition, File targetDir, Config config) throws Exception {
+
         String clazzName = snakeToCamelHumps(tableDefinition.getName()) + "Record";
 
-        String qualifiedType = this.config.getPackageName() + "." + clazzName;
+        String qualifiedType = config.getPackageName() + "." + clazzName;
 
-        JavaWriter writer = new JavaWriter(qualifiedType, targetDir, this.config.getEncoding());
+        JavaWriter writer = new JavaWriter(qualifiedType, targetDir, config.getEncoding());
         writer.println();
         writer.printImport();
-        writer.tabLn("public class %s{", clazzName);
+        writer.println("public class %s{", clazzName);
 
         List<ColumnDefinition> columnDefinitions = tableDefinition.getColumnDefinitionList();
         columnDefinitions.sort(Comparator.comparing(ColumnDefinition::getPosition));
+
         writer.tabInc();
         for (ColumnDefinition columnDefinition : columnDefinitions) {
             writer.tabLn("private %s %s;", columnDefinition.getJavaType().getName(),
                     escapeKeyWord(snakeToCamelHumpsTitle(columnDefinition.getName())));
         }
-
         writer.println();
+
         for (ColumnDefinition columnDefinition : columnDefinitions) {
             String className = columnDefinition.getJavaType().getName();
-            String STH = escapeKeyWord(snakeToCamelHumps(columnDefinition.getName()));
-            String sTHT = escapeKeyWord(snakeToCamelHumpsTitle(columnDefinition.getName()));
+            String sth = escapeKeyWord(snakeToCamelHumps(columnDefinition.getName()));
+            String stht = escapeKeyWord(snakeToCamelHumpsTitle(columnDefinition.getName()));
 
-            writer.tabLn("public %s get%s(){", className, STH);
-            writer.tabIncLn("return this.%1$s;", sTHT);
+            writer.tabLn("public %s get%s(){", className, sth);
+            writer.tabIncLn("return this.%1$s;", stht);
+            writer.tabDecLn("}");
+            writer.tabLn("public void set%s(%s %s){", sth, className, stht);
+            writer.tabIncLn("this.%s=%s;", stht, stht);
             writer.tabDecLn("}");
             writer.println();
-            writer.tabLn("public void set%s(%s %s){", STH, className, sTHT);
-            writer.tabIncLn("this.%s=%s;", sTHT, sTHT);
-            writer.tabDecLn("}");
         }
-        writer.tabDec();
-        writer.tabLn("}");
+        writer.tabDec()
+                .tabLn("}");
         writer.close();
     }
 

@@ -6,13 +6,11 @@ import java.util.List;
 public class DatabaseDefinition {
     private final String catalog;
     private final String schema;
-    private final String comment;
     private final List<TableDefinition> tableDefinitionList;
 
-    public DatabaseDefinition(String catalog, String schema, String comment) {
+    public DatabaseDefinition(String catalog, String schema) {
         this.catalog = catalog;
         this.schema = schema;
-        this.comment = comment;
         this.tableDefinitionList = new ArrayList<>();
     }
 
@@ -22,10 +20,6 @@ public class DatabaseDefinition {
 
     public String getSchema() {
         return schema;
-    }
-
-    public String getComment() {
-        return comment;
     }
 
     public void addTable(TableDefinition table) {
@@ -41,7 +35,6 @@ public class DatabaseDefinition {
         return "DatabaseDefinition{" +
                 "catalog='" + catalog + '\'' +
                 ", schema='" + schema + '\'' +
-                ", comment='" + comment + '\'' +
                 ", tableDefinitionList=" + tableDefinitionList +
                 '}';
     }

@@ -40,7 +40,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class MetricsViews extends TableImpl<MetricsViewsRecord> {
 
-    private static final long serialVersionUID = -2123984050;
+    private static final long serialVersionUID = 2001623308;
 
     /**
      * The reference instance of <code>statistics.metrics_views</code>
@@ -66,10 +66,9 @@ public class MetricsViews extends TableImpl<MetricsViewsRecord> {
     public final TableField<MetricsViewsRecord, String> SERVICE_NAME = createField("service_name", org.jooq.impl.SQLDataType.VARCHAR(255).nullable(false), this, "名称");
 
     /**
-     * @deprecated Unknown data type. Please define an explicit {@link org.jooq.Binding} to specify how this type should be handled. Deprecation can be turned off using {@literal <deprecationOnUnknownTypes/>} in your code generator configuration.
+     * The column <code>statistics.metrics_views.stats</code>. 数据
      */
-    @java.lang.Deprecated
-    public final TableField<MetricsViewsRecord, Object> STATS = createField("stats", org.jooq.impl.DefaultDataType.getDefaultDataType("\"statistics\".\"metrics_views_stats\"").nullable(false), this, "数据");
+    public final TableField<MetricsViewsRecord, String> STATS = createField("stats", org.jooq.impl.SQLDataType.CLOB.nullable(false), this, "数据");
 
     /**
      * The column <code>statistics.metrics_views.timestamp</code>. 更新时间

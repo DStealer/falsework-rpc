@@ -27,7 +27,7 @@ import org.jooq.impl.CatalogImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DefaultCatalog extends CatalogImpl {
 
-    private static final long serialVersionUID = 458942471;
+    private static final long serialVersionUID = -1022590905;
 
     /**
      * The reference instance of <code></code>
@@ -37,7 +37,7 @@ public class DefaultCatalog extends CatalogImpl {
     /**
      * The schema <code>statistics</code>.
      */
-    public final Statistics STATISTICS = Statistics.STATISTICS;
+    public final Statistics STATISTICS = com.falsework.census.generated.jooq.Statistics.STATISTICS;
 
     /**
      * No further instances allowed

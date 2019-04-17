@@ -1,4 +1,4 @@
-package com.falsework.service.service;
+package com.falsework.service.core;
 
 import com.google.inject.AbstractModule;
 

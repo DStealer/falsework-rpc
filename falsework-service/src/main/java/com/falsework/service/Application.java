@@ -1,7 +1,7 @@
 package com.falsework.service;
 
 import com.falsework.core.FalseWorkApplicationBuilder;
-import com.falsework.service.service.ServiceModule;
+import com.falsework.service.core.ServiceModule;
 
 /**
  * Hello world!

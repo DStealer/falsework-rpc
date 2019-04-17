@@ -30,7 +30,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Statistics extends SchemaImpl {
 
-    private static final long serialVersionUID = -1798670439;
+    private static final long serialVersionUID = 308138103;
 
     /**
      * The reference instance of <code>statistics</code>
@@ -40,7 +40,7 @@ public class Statistics extends SchemaImpl {
     /**
      * 统计表
      */
-    public final MetricsViews METRICS_VIEWS = MetricsViews.METRICS_VIEWS;
+    public final MetricsViews METRICS_VIEWS = com.falsework.census.generated.jooq.tables.MetricsViews.METRICS_VIEWS;
 
     /**
      * No further instances allowed

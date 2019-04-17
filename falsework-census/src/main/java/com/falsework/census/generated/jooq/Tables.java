@@ -25,5 +25,5 @@ public class Tables {
     /**
      * 统计表
      */
-    public static final MetricsViews METRICS_VIEWS = MetricsViews.METRICS_VIEWS;
+    public static final MetricsViews METRICS_VIEWS = com.falsework.census.generated.jooq.tables.MetricsViews.METRICS_VIEWS;
 }

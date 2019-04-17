@@ -1,4 +1,4 @@
-package com.falsework.service.service;
+package com.falsework.service.core;
 
 import com.falsework.core.client.ChannelBuilder;
 import com.falsework.core.client.ChannelManager;
