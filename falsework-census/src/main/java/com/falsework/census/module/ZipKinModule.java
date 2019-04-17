@@ -7,7 +7,6 @@ import com.falsework.core.datasource.DataSourceBuilder;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.AbstractModule;
 import com.zaxxer.hikari.HikariDataSource;
-import io.netty.util.NettyRuntime;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.conf.ExecuteWithoutWhere;
@@ -55,7 +54,7 @@ public class ZipKinModule extends AbstractModule {
                 .datasource(tracingDatasource)
                 .settings(settings)
                 .listenerProvider(new DefaultExecuteListenerProvider(new ZipkinMySQLStorageTimedListener()))
-                .executor(Executors.newFixedThreadPool(NettyRuntime.availableProcessors() * 4,
+                .executor(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4,
                         new ThreadFactoryBuilder().setNameFormat("ZipkinMySQLStorage-%d").setDaemon(true).build()))
                 .build();
 

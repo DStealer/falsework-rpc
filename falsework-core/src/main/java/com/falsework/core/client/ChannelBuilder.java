@@ -7,8 +7,8 @@ import com.google.common.base.Preconditions;
 import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.NameResolver;
-import io.grpc.netty.InternalNettyChannelBuilder;
-import io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.InternalNettyChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +28,6 @@ public class ChannelBuilder implements Builder<ChannelManager> {
     private NameResolver.Factory factory;
     private List<ClientInterceptor> interceptorList = new LinkedList<>();
     private Set<ChannelListener> listeners = new LinkedHashSet<>();
-    private int messageSizeByte;
-    private int metadataSizeByte;
 
     private ChannelBuilder() {
     }
@@ -101,26 +99,13 @@ public class ChannelBuilder implements Builder<ChannelManager> {
         return this;
     }
 
-    /**
-     * 请求消息大小
-     *
-     * @param messageSizeByte
-     * @param metadataSizeByte
-     * @return
-     */
-
-    public ChannelBuilder maxInMessageSize(int messageSizeByte, int metadataSizeByte) {
-        Preconditions.checkArgument(messageSizeByte < 1024 * 1024, "messageSizeByte too small");
-        Preconditions.checkArgument(metadataSizeByte < 1024 * 1024, "metadataSizeByte too small");
-        this.messageSizeByte = messageSizeByte;
-        this.metadataSizeByte = metadataSizeByte;
-        return this;
-    }
-
 
     @Override
     public ChannelManager build() {
+        LOGGER.info("build channel:{}", this.name);
+
         NettyChannelBuilder builder = NettyChannelBuilder.forTarget(this.name);
+
         ChannelConfigurer configurer = ChannelConfigurerManager.getConfigurer();
         if (this.executor != null) {
             builder.executor(this.executor);
@@ -141,16 +126,13 @@ public class ChannelBuilder implements Builder<ChannelManager> {
             builder.intercept(interceptor);
         }
 
-        if (this.messageSizeByte > 0 && this.metadataSizeByte > 0) {
-            builder.maxInboundMessageSize(this.messageSizeByte);
-            builder.maxInboundMetadataSize(this.metadataSizeByte);
-        }
         //内部配置
         builder.usePlaintext();
 
         builder.defaultLoadBalancingPolicy(configurer.getLoadBalancerPolicy());
 
         InternalNettyChannelBuilder.setStatsRecordStartedRpcs(builder, false);
+        InternalNettyChannelBuilder.setStatsRecordRealTimeMetrics(builder, false);
 
         ManagedChannel channel = builder.build();
 

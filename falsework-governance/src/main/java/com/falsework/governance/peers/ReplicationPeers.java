@@ -9,7 +9,7 @@ import com.falsework.governance.generated.*;
 import com.falsework.governance.model.InstanceLeaseInfo;
 import com.falsework.governance.registry.InstanceRegistry;
 import io.grpc.ManagedChannel;
-import io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +65,7 @@ public class ReplicationPeers {
             }
             ManagedChannel channel = NettyChannelBuilder.forAddress(address)
                     .executor(ChannelConfigurerManager.getConfigurer().getDefaultChannelExecutor())
-                    .keepAliveWithoutCalls(true).usePlaintext().build();
+                    .usePlaintext().build();
             this.channels.add(channel);
             this.stubs.add(RegistryServiceGrpc.newStub(channel));
         }

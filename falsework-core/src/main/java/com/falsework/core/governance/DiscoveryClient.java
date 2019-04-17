@@ -9,8 +9,8 @@ import com.falsework.core.grpc.HttpResolverProvider;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
-import io.grpc.netty.NettyChannelBuilder;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +43,6 @@ public class DiscoveryClient {
         String address = this.props.getProperty(PropsVars.DISCOVERY_ADDRESS);
         this.discoveryChannel = NettyChannelBuilder.forTarget(address)
                 .nameResolverFactory(HttpResolverProvider.SINGLTON)
-                .keepAliveWithoutCalls(true)
                 .eventLoopGroup(new NioEventLoopGroup(2, new ThreadFactoryBuilder().
                         setNameFormat("discovery-event-loop-%d").setDaemon(true).build()))
                 .usePlaintext()

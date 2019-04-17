@@ -3,7 +3,7 @@ package com.falsework.core.server;
 import com.google.common.base.Stopwatch;
 import com.google.common.net.InetAddresses;
 import io.grpc.*;
-import io.netty.channel.local.LocalAddress;
+import io.grpc.netty.shaded.io.netty.channel.local.LocalAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

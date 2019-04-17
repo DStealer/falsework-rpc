@@ -1,6 +1,7 @@
 package com.falsework.core.common;
 
-import io.netty.util.NettyRuntime;
+
+import io.grpc.netty.shaded.io.netty.util.NettyRuntime;
 
 import java.util.concurrent.*;
 

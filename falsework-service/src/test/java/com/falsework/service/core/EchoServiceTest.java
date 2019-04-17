@@ -20,6 +20,5 @@ public class EchoServiceTest extends BaseServiceTest {
         while (true) {
             stub.echo(EchoRequest.newBuilder().setMsg("hello").build());
         }
-        T
     }
 }
