@@ -1,7 +1,7 @@
 package com.falsework.gateway.h2c;
 
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerContext;
+import io.grpc.netty.shaded.io.netty.channel.ChannelDuplexHandler;
+import io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

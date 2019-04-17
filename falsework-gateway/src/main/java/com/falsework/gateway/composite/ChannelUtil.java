@@ -1,13 +1,14 @@
 package com.falsework.gateway.composite;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.*;
-import io.netty.handler.codec.http2.Http2CodecUtil;
-import io.netty.handler.codec.http2.Http2Flags;
-import io.netty.handler.codec.http2.Http2FrameTypes;
-import io.netty.handler.codec.http2.Http2Settings;
-import io.netty.util.internal.ObjectUtil;
+
+import io.grpc.netty.shaded.io.netty.buffer.ByteBuf;
+import io.grpc.netty.shaded.io.netty.buffer.Unpooled;
+import io.grpc.netty.shaded.io.netty.channel.*;
+import io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2CodecUtil;
+import io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2Flags;
+import io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2FrameTypes;
+import io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2Settings;
+import io.grpc.netty.shaded.io.netty.util.internal.ObjectUtil;
 
 public class ChannelUtil {
     public static ChannelFuture writeSettings(ChannelHandlerContext ctx, Http2Settings settings, ChannelPromise promise) {

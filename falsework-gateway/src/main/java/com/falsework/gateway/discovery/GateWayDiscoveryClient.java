@@ -10,8 +10,8 @@ import com.google.common.collect.Table;
 import com.google.common.collect.Tables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.ManagedChannel;
-import io.grpc.netty.NettyChannelBuilder;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,8 +1,9 @@
 package com.falsework.gateway.resolver;
 
 import com.falsework.core.generated.governance.InstanceInfo;
-import io.netty.channel.Channel;
-import io.netty.handler.codec.http2.Http2Headers;
+import io.grpc.netty.shaded.io.netty.channel.Channel;
+import io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2Headers;
+
 
 import java.util.Optional;
 

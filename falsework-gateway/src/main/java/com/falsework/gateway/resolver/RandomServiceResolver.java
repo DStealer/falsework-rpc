@@ -3,8 +3,9 @@ package com.falsework.gateway.resolver;
 import com.falsework.core.generated.governance.InstanceInfo;
 import com.falsework.gateway.discovery.GateWayDiscoveryClient;
 import com.falsework.gateway.module.ServiceInfo;
-import io.netty.channel.Channel;
-import io.netty.handler.codec.http2.Http2Headers;
+
+import io.grpc.netty.shaded.io.netty.channel.Channel;
+import io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

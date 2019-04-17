@@ -1,16 +1,16 @@
 package com.falsework.core.mock;
 
-import io.netty.bootstrap.Bootstrap;
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.logging.LoggingHandler;
+import io.grpc.netty.shaded.io.netty.bootstrap.Bootstrap;
+import io.grpc.netty.shaded.io.netty.bootstrap.ServerBootstrap;
+import io.grpc.netty.shaded.io.netty.channel.ChannelFuture;
+import io.grpc.netty.shaded.io.netty.channel.ChannelInitializer;
+import io.grpc.netty.shaded.io.netty.channel.ChannelOption;
+import io.grpc.netty.shaded.io.netty.channel.EventLoopGroup;
+import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
+import io.grpc.netty.shaded.io.netty.channel.socket.SocketChannel;
+import io.grpc.netty.shaded.io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.grpc.netty.shaded.io.netty.channel.socket.nio.NioSocketChannel;
+import io.grpc.netty.shaded.io.netty.handler.logging.LoggingHandler;
 import org.junit.Test;
 
 public class NettyTest {

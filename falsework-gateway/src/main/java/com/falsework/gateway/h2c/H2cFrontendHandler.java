@@ -1,10 +1,11 @@
 package com.falsework.gateway.h2c;
 
 import com.falsework.gateway.composite.ChannelUtil;
-import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.*;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.timeout.IdleStateEvent;
+
+import io.grpc.netty.shaded.io.netty.bootstrap.Bootstrap;
+import io.grpc.netty.shaded.io.netty.channel.*;
+import io.grpc.netty.shaded.io.netty.channel.socket.SocketChannel;
+import io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

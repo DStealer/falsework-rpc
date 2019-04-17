@@ -4,7 +4,7 @@ import com.falsework.census.generated.grpc.*;
 import com.falsework.core.client.ChannelManager;
 import com.falsework.core.client.ChannelBuilder;
 import io.grpc.ManagedChannel;
-import io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import org.junit.Test;
 
 public class MetricQueryServiceTest {

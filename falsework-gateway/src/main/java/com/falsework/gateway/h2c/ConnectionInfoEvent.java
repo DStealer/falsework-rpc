@@ -1,6 +1,7 @@
 package com.falsework.gateway.h2c;
 
-import io.netty.buffer.ByteBuf;
+
+import io.grpc.netty.shaded.io.netty.buffer.ByteBuf;
 
 public class ConnectionInfoEvent {
     private final String remoteHost;
