@@ -6,7 +6,7 @@ public class ServiceModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(DiscoveryService.class).asEagerSingleton();
-        bind(SecureService.class).asEagerSingleton();
+        bind(AuthService.class).asEagerSingleton();
         bind(RegistryService.class).asEagerSingleton();
     }
 }

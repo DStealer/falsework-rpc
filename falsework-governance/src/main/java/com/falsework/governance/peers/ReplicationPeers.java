@@ -1,5 +1,6 @@
 package com.falsework.governance.peers;
 
+import com.falsework.core.composite.SystemUtil;
 import com.falsework.core.config.Props;
 import com.falsework.core.generated.common.RequestMeta;
 import com.falsework.core.generated.governance.InstanceStatus;
@@ -8,6 +9,8 @@ import com.falsework.governance.config.PropsVars;
 import com.falsework.governance.generated.*;
 import com.falsework.governance.model.InstanceLeaseInfo;
 import com.falsework.governance.registry.InstanceRegistry;
+import com.falsework.governance.service.AuthService;
+import com.google.inject.Singleton;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -22,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
+@Singleton
 public class ReplicationPeers {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationPeers.class);
     private final Props props;
@@ -29,13 +33,13 @@ public class ReplicationPeers {
     private final List<ManagedChannel> channels = new CopyOnWriteArrayList<>();
     private final List<RegistryServiceGrpc.RegistryServiceStub> stubs = new CopyOnWriteArrayList<>();
     private final ForkJoinPool forkJoinPool;
-    private final String replicaToken;
+    private final AuthService authService;
 
-    public ReplicationPeers(InstanceRegistry registry, Props props) {
+    public ReplicationPeers(InstanceRegistry registry, Props props, AuthService authService) {
         this.props = props;
         this.registry = registry;
         this.forkJoinPool = ForkJoinPool.commonPool();
-        this.replicaToken = this.props.getProperty(PropsVars.REGISTER_REPLICA_TOKEN);
+        this.authService = authService;
     }
 
     /**
@@ -49,7 +53,7 @@ public class ReplicationPeers {
         String[] authorities = new URI(peerAddresses).getAuthority().split(";");
 
         LOGGER.info("init peer manager ...{}", Arrays.toString(authorities));
-        String localAuthority = this.props.getProperty(PropsVars.SERVER_IP);
+        String localIp = this.props.getProperty(PropsVars.SERVER_IP);
         int localPort = this.props.getInt(PropsVars.SERVER_PORT);
         for (String authority : authorities) {
             String[] strings = authority.split(":", 2);
@@ -59,7 +63,7 @@ public class ReplicationPeers {
             } catch (NumberFormatException e) {
                 address = new InetSocketAddress(strings[0], 80);
             }
-            if (localAuthority.equals(address.getAddress().getHostAddress()) && localPort == address.getPort()) {
+            if (SystemUtil.equivalentAddress(localIp, localPort, address.getAddress().getHostAddress(), address.getPort())) {
                 LOGGER.info("filter local service:{}", address);
                 continue;
             }
@@ -102,7 +106,7 @@ public class ReplicationPeers {
     public Collection<RegistryGroupInfo> tryFetchRegistry() {
         LOGGER.info("try fetch registry...");
         RegistryRequest request = RegistryRequest.newBuilder()
-                .setMeta(tokenedMeta()).build();
+                .setMeta(defaultMeta()).build();
         for (int i = 0; i < stubs.size(); i++) {
             CompletableFuture<RegistryResponse> future = new CompletableFuture<>();
             stubs.get(i).fetchRegistry(request, new StreamObserver<RegistryResponse>() {
@@ -138,10 +142,10 @@ public class ReplicationPeers {
         return Collections.EMPTY_LIST;
     }
 
-    private RequestMeta tokenedMeta() {
-        return RequestMeta.newBuilder()
-                .putAttributes("replica-token", this.replicaToken)
-                .build();
+    private RequestMeta defaultMeta() {
+        RequestMeta.Builder builder = RequestMeta.newBuilder();
+        this.authService.replicaAuthorization(builder);
+        return builder.build();
     }
 
     /**
@@ -153,7 +157,7 @@ public class ReplicationPeers {
      */
     public void cancel(String groupName, String serviceName, String instanceId) {
         this.forkJoinPool.submit(() -> {
-            CancelRequest request = CancelRequest.newBuilder().setMeta(tokenedMeta())
+            CancelRequest request = CancelRequest.newBuilder().setMeta(defaultMeta())
                     .setGroupName(groupName).setServiceName(serviceName).setInstanceId(instanceId).build();
             for (RegistryServiceGrpc.RegistryServiceStub stub : stubs) {
                 stub.cancel(request, new StreamObserver<CancelResponse>() {
@@ -189,7 +193,7 @@ public class ReplicationPeers {
      */
     public void renew(String groupName, String serviceName, String instanceId, long lastDirtyTimestamp) {
         this.forkJoinPool.submit(() -> {
-            RenewRequest request = RenewRequest.newBuilder().setMeta(tokenedMeta())
+            RenewRequest request = RenewRequest.newBuilder().setMeta(defaultMeta())
                     .setGroupName(groupName).setServiceName(serviceName).setInstanceId(instanceId)
                     .setLastDirtyTimestamp(lastDirtyTimestamp).build();
             for (RegistryServiceGrpc.RegistryServiceStub stub : stubs) {
@@ -263,7 +267,7 @@ public class ReplicationPeers {
     public void register(RegistryLeaseInfo info) {
         this.forkJoinPool.submit(() -> {
             RegisterRequest request = RegisterRequest.newBuilder()
-                    .setMeta(tokenedMeta())
+                    .setMeta(defaultMeta())
                     .setLease(info).build();
             for (RegistryServiceGrpc.RegistryServiceStub stub : stubs) {
                 stub.register(request, new StreamObserver<RegisterResponse>() {
@@ -303,7 +307,7 @@ public class ReplicationPeers {
     public void change(String groupName, String serviceName, String instanceId, InstanceStatus status,
                        Map<String, String> attributesMap, long lastDirtyTimestamp) {
         this.forkJoinPool.submit(() -> {
-            ChangeRequest request = ChangeRequest.newBuilder().setMeta(tokenedMeta())
+            ChangeRequest request = ChangeRequest.newBuilder().setMeta(defaultMeta())
                     .setGroupName(groupName).setServiceName(serviceName).setInstanceId(instanceId)
                     .setStatus(status).putAllAttributes(attributesMap)
                     .setLastDirtyTimestamp(lastDirtyTimestamp).build();

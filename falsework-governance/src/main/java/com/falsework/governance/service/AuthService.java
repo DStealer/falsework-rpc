@@ -12,16 +12,19 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+/**
+ * 认证和授权
+ */
 @Singleton
-public class SecureService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SecureService.class);
+public class AuthService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
     private final Props props;
     private final Set<String> groups;
     private final HashMap<String, String> credential;
     private final String replicaToken;
 
     @Inject
-    public SecureService(Props props) {
+    public AuthService(Props props) {
         this.props = props;
         String[] whiteGroups = this.props.getStringArray(PropsVars.REGISTER_GROUP_WHITE_LIST);
         this.groups = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(whiteGroups)));
@@ -34,7 +37,7 @@ public class SecureService {
      *
      * @param group
      */
-    public void groupWhiteCheck(String group) {
+    public void groupAuthentication(String group) {
         if (!this.groups.contains(group)) {
             throw ErrorCode.PERMISSION_DENIED.asException("group denied");
         }
@@ -45,18 +48,27 @@ public class SecureService {
      *
      * @param meta
      */
-    public void credentialCheck(RequestMeta meta) {
+    public void credentialAuthentication(RequestMeta meta) {
         LOGGER.warn("oops....,how.....,ignore");
     }
 
     /**
-     * 检测复制授权
+     * 认证
      *
      * @param meta
      */
-    public void replicaTokenCheck(RequestMeta meta) {
+    public void replicaAuthentication(RequestMeta meta) {
         if (!StringUtils.equals(this.replicaToken, meta.getAttributesMap().get("replica-token"))) {
             throw ErrorCode.UNAUTHENTICATED.asException();
         }
+    }
+
+    /**
+     * 授权
+     *
+     * @param builder
+     */
+    public void replicaAuthorization(RequestMeta.Builder builder) {
+        builder.putAttributes("replica-token", this.replicaToken);
     }
 }

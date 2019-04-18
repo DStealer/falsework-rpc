@@ -86,10 +86,37 @@ public enum SystemUtil {
      */
     public static String hostname() {
         try {
-           return InetAddress.getLocalHost().getHostName();
+            return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
             LOGGER.warn("can't find hostname,return unknown");
         }
         return "UNKNOWN";
+    }
+
+    /**
+     * 判断是否为对等地址，及同一主机的地址
+     *
+     * @param ipA
+     * @param portA
+     * @param ipB
+     * @param portB
+     * @return
+     */
+    public static boolean equivalentAddress(String ipA, int portA, String ipB, int portB) {
+        if (portA == portB) {
+            if (ipA.equals(ipB)) {
+                return true;
+            }
+            try {
+                NetworkInterface anInterfaceA = NetworkInterface.getByInetAddress(new InetSocketAddress(ipA, portA).getAddress());
+                NetworkInterface anInterfaceB = NetworkInterface.getByInetAddress(new InetSocketAddress(ipB, portB).getAddress());
+                if (anInterfaceA != null && anInterfaceB != null) {
+                    return true;
+                }
+            } catch (SocketException e) {
+                LOGGER.warn("can't decided equivalent address", e);
+            }
+        }
+        return false;
     }
 }

@@ -20,12 +20,12 @@ import java.util.Collection;
 public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplBase {
     private static final Logger LOGGER = LoggerFactory.getLogger(DiscoveryService.class);
     private final InstanceRegistry registry;
-    private final SecureService secureService;
+    private final AuthService authService;
 
     @Inject
-    public DiscoveryService(InstanceRegistry registry, SecureService secureService) {
+    public DiscoveryService(InstanceRegistry registry, AuthService authService) {
         this.registry = registry;
-        this.secureService = secureService;
+        this.authService = authService;
     }
 
     @Override
@@ -33,8 +33,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("renew from:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
         RenewResponse.Builder builder = RenewResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             this.registry.renew(request.getGroupName(), request.getServiceName(), request.getInstanceId());
             builder.setMeta(ErrorCode.NA.toResponseMeta());
@@ -55,8 +55,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("register from:\n{}", request.getInstance());
         RegisterResponse.Builder builder = RegisterResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getInstance().getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getInstance().getGroupName());
 
             this.registry.register(request.getInstance(), InstanceLeaseInfo.DEFAULT_DURATION_MS);
             builder.setMeta(ErrorCode.NA.toResponseMeta());
@@ -77,8 +77,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("cancel from:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
         CancelResponse.Builder builder = CancelResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             registry.cancel(request.getGroupName(), request.getServiceName(), request.getInstanceId());
             builder.setMeta(ErrorCode.NA.toResponseMeta());
@@ -99,8 +99,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("change from:{}|{}|{}", request.getGroupName(), request.getServiceName(), request.getInstanceId());
         ChangeResponse.Builder builder = ChangeResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             registry.change(request.getGroupName(), request.getServiceName(), request.getInstanceId(),
                     request.getStatus(), request.getAttributesMap());
@@ -122,7 +122,7 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("group name find...");
         GroupNameResponse.Builder builder = GroupNameResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
+            authService.credentialAuthentication(request.getMeta());
 
             Collection<String> names = registry.groupName();
             builder.setMeta(ErrorCode.NA.toResponseMeta())
@@ -144,8 +144,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find service name for:{}", request.getGroupName());
         ServiceNameResponse.Builder builder = ServiceNameResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             Collection<String> names = registry.serviceName(request.getGroupName());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
@@ -167,8 +167,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find service for:{}|{}", request.getGroupName(), request.getServiceName());
         ServiceResponse.Builder builder = ServiceResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             ServiceInfo service = registry.service(request.getGroupName(), request.getServiceName());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
@@ -190,8 +190,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find group name for:{}", request.getGroupName());
         GroupResponse.Builder builder = GroupResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             GroupInfo groupInfo = registry.group(request.getGroupName());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
@@ -213,7 +213,7 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find delta group for:{}", request.getHashInfosMap().keySet());
         GroupDeltaResponse.Builder builder = GroupDeltaResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
+            authService.credentialAuthentication(request.getMeta());
 
             Collection<DeltaGroupInfo> deltaGroups = this.registry.groupDelta(request.getHashInfosMap());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
@@ -235,8 +235,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
         LOGGER.info("find delta service for:{}/{}", request.getGroupName(), request.getHashInfosMap().keySet());
         ServiceDeltaResponse.Builder builder = ServiceDeltaResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             Collection<DeltaServiceInfo> deltaServices = this.registry.serviceDelta(request.getGroupName(), request.getHashInfosMap());
             builder.setMeta(ErrorCode.NA.toResponseMeta())
@@ -259,8 +259,8 @@ public class DiscoveryService extends DiscoveryServiceGrpc.DiscoveryServiceImplB
                 request.getHashInfosMap().keySet());
         InstanceDeltaResponse.Builder builder = InstanceDeltaResponse.newBuilder();
         try {
-            secureService.credentialCheck(request.getMeta());
-            secureService.groupWhiteCheck(request.getGroupName());
+            authService.credentialAuthentication(request.getMeta());
+            authService.groupAuthentication(request.getGroupName());
 
             Collection<DeltaInstanceInfo> deltaInstance = this.registry.instanceDelta(request.getGroupName(), request.getServiceName(),
                     request.getHashInfosMap());

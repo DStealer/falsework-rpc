@@ -12,6 +12,7 @@ import com.falsework.governance.model.InnerInstanceInfo;
 import com.falsework.governance.model.InnerServiceInfo;
 import com.falsework.governance.model.InstanceLeaseInfo;
 import com.falsework.governance.peers.ReplicationPeers;
+import com.falsework.governance.service.AuthService;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,12 +37,12 @@ public class InstanceRegistry {
     private Timer evictionTimer = new Timer("governance-eviction-timer", true); //失效移除任务
 
     @Inject
-    public InstanceRegistry(Props props) {
+    public InstanceRegistry(Props props, AuthService authService) {
         this.props = props;
         this.evictionIntervalMs = this.props.getLong(PropsVars.REGISTER_EVICTION_INTERVAL);
         this.preservationModeEnabled = this.props.getBoolean(PropsVars.REGISTER_PRESERVATION_MODE_ENABLED);
         if (this.props.existProps(PropsVars.REGISTER_PEER_ADDRESS)) {
-            this.replicationPeers = new ReplicationPeers(this, props);
+            this.replicationPeers = new ReplicationPeers(this, props,authService);
         } else {
             this.replicationPeers = null;
         }
@@ -356,7 +357,9 @@ public class InstanceRegistry {
      */
     public void stop() throws Exception {
         LOGGER.info("instance registry! stop...");
-        this.replicationPeers.stop();
+        if(this.replicationPeers!=null) {
+            this.replicationPeers.stop();
+        }
         this.evictionTimer.cancel();
         this.multiGroupInfo.clear();
         LOGGER.info("stop finished...");
