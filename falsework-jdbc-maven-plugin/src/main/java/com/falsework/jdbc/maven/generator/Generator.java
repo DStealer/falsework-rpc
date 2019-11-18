@@ -101,13 +101,14 @@ public class Generator {
 
         writer.tabInc();
         for (ColumnDefinition columnDefinition : columnDefinitions) {
-            writer.tabLn("private %s %s;", columnDefinition.getJavaType().getName(),
+            writer.ref(columnDefinition.getJavaType());
+            writer.tabLn("private %s %s;", columnDefinition.getJavaType().getSimpleName(),
                     escapeKeyWord(snakeToCamelHumpsTitle(columnDefinition.getName())));
         }
         writer.println();
 
         for (ColumnDefinition columnDefinition : columnDefinitions) {
-            String className = columnDefinition.getJavaType().getName();
+            String className = columnDefinition.getJavaType().getSimpleName();
             String sth = escapeKeyWord(snakeToCamelHumps(columnDefinition.getName()));
             String stht = escapeKeyWord(snakeToCamelHumpsTitle(columnDefinition.getName()));
 

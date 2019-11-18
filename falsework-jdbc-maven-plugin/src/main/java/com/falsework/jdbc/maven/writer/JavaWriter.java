@@ -115,7 +115,7 @@ public class JavaWriter {
     }
 
     public JavaWriter ref(Class clazz) {
-        if (!clazz.getPackage().getName().startsWith("java.lang.")) {
+        if (!clazz.getPackage().getName().startsWith("java.lang")) {
             this.refClasses.add(clazz);
         }
         return this;

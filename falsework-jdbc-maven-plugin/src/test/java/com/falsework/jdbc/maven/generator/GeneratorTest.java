@@ -12,10 +12,10 @@ public class GeneratorTest {
     public void run() throws Exception {
         Jdbc jdbc = new Jdbc();
         jdbc.setDriver("com.mysql.cj.jdbc.Driver");
-        jdbc.setUrl("jdbc:mysql://127.0.0.1:3306?useSSL=false");
-        jdbc.setCatalog("testdb");
+        jdbc.setUrl("jdbc:mysql://192.168.56.21:3306?useSSL=false");
+        jdbc.setCatalog("test");
         jdbc.setUsername("user");
-        jdbc.setPassword("user");
+        jdbc.setPassword("User2020#");
 
         Config config = new Config();
         config.setDirectory(new File("/tmp/generated"));
