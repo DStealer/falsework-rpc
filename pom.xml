@@ -34,7 +34,7 @@
         <logback.version>1.2.3</logback.version>
         <jts.version>1.7.25</jts.version>
         <resilience4j.version>0.13.2</resilience4j.version>
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.1</junit.version>
 
     </properties>
 
